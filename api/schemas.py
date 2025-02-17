@@ -2,7 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, computed_field
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
-from crud import get_user_ids_by_episode_id, get_category_id_by_episode_id
+from .crud import get_user_ids_by_episode_id, get_category_id_by_episode_id
 
 
 class User(BaseModel):

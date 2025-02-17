@@ -1,12 +1,12 @@
 from typing import Optional, Any
 
 from loguru import logger
-import models
+from . import models
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from sqlalchemy import Column
 
-from db import get_db_session, cache
+from .db import get_db_session, cache
 
 
 def db_model_to_dict(db_model_obj: Any) -> dict | None:

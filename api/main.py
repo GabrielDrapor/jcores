@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from db import get_db_session
-import models
 from typing import Optional
-from schemas import Episode, User, Category
-from crud import get_episodes_by_user_id_and_category_id, get_all_users, get_all_categories
+from .db import get_db_session
+from . import models
+from .schemas import Episode, User, Category
+from .crud import get_episodes_by_user_id_and_category_id, get_all_users, get_all_categories
 
 app = FastAPI(root_path="/api/py")
 

@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, DisconnectionError
 from loguru import logger
 from contextlib import contextmanager
-from models import Base  # Import the Base from models.py
+from .models import Base  # Import the Base from models.py
 import time
 import os
 
