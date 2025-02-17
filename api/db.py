@@ -36,8 +36,8 @@ engine = create_engine(
 Session = sessionmaker(bind=engine)
 
 # Create all tables
-logger.info("Creating tables")
-Base.metadata.create_all(engine)
+# logger.info("Creating tables")
+# Base.metadata.create_all(engine)
 
 
 def retry_on_connection_error(func):
