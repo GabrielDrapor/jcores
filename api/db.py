@@ -98,14 +98,21 @@ def set_cache(key: str, value: Any, expire: int = 3600) -> None:
 def get_cache(key: str) -> Optional[Any]:
     """Get cache value, returns None if not found"""
     try:
+        start = time.perf_counter()
         data = redis_client.get(key)
+        if data is not None:
+            logger.info(
+                f"Redis get success, key: '{key}', used time: {time.perf_counter() - start}s")
+        else:
+            logger.info(
+                f"Redis get empty, key: '{key}', used time: {time.perf_counter() - start}s")
         return json.loads(data) if data else None
     except Exception as e:
         logger.error(f"Redis get error: {e}")
         return None
 
 
-def cache(expire: int = 3600):
+def cache(expire: int = 3600 * 24):
     """Decorator for caching function results
 
     Args:

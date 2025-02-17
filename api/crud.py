@@ -27,8 +27,7 @@ def get_all_users(db: Session) -> list[dict]:
     return [db_model_to_dict(user) for user in db_users]
 
 
-# 30 minutes cache
-@cache(expire=1800)
+@cache()
 def get_all_categories(db: Session) -> list[dict]:
     db_categories = db.query(models.Category).order_by(
         models.Category.id).all()
@@ -96,7 +95,7 @@ def get_episode(db: Session, episode_id: int) -> Optional[dict]:
     return db_model_to_dict(episode)
 
 
-@cache(expire=300)  # 5 minutes cache
+@cache()  # 5 minutes cache
 def get_episodes_by_user_id_and_category_id(
     db: Session,
     user_id: int | None = None,

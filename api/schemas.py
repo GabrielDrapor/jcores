@@ -42,10 +42,10 @@ class Episode(BaseModel):
     is_free: bool
     published_at: datetime
 
-    @computed_field
-    def user_ids(self) -> list[int]:
-        return get_user_ids_by_episode_id(self.id)
+    # @computed_field
+    # def user_ids(self) -> list[int]:
+    #     return get_user_ids_by_episode_id(self.id)
 
-    @computed_field
-    def category_id(self) -> int:
-        return get_category_id_by_episode_id(self.id)
+    # @computed_field
+    # def category_id(self) -> int:
+    #     return get_category_id_by_episode_id(self.id)
