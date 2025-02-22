@@ -1,41 +1,27 @@
 import json
 import os
 from loguru import logger
-from db import get_db_session
-from crud import *
-from models import Episode, EpisodeUser, EpisodeCategory, User
-from crawlers import *
+from api.db import get_db_session
+from api.crud import *
+from api.models import Episode, EpisodeUser, EpisodeCategory, User, Album, EpisodeAlbum
+from api.crawlers import *
 import argparse
+import os
 
 
-def backfill_categories():
-    categories = []
-    with open('data/misc.txt', 'r', encoding='utf-8') as f:
-        for line in f.readlines():
-            line_dict = json.loads(line)
-            if line_dict['type'] == 'categories':
-                categories.append(line_dict)
-
-    with get_db_session() as db:
-        for cat in categories:
-            cat_id = cat['id']
-            if not get_category(db, int(cat_id)):
-                insert_category(db, category_id=int(cat_id), name=cat['attributes']['name'], desc=cat['attributes']['desc'], logo=cat['attributes']
-                                ['logo'], background=cat['attributes']['background'], subscriptions_count=cat['attributes']['subscriptions-count'])
-
-
-def backfill_episodes_by_user(user_id: int):
+def backfill_all_episodes_by_user(user_id: int):
     logger.info("user_id: {}", user_id)
     limit, offset = 50, 0
     episodes = []
     users = {}
     logger.info("fetching...")
-    cache_path = 'data/crawler_cache_{user_id}.json'.format(user_id=user_id)
+    cache_path = 'api/data/crawler_cache_{user_id}.json'.format(
+        user_id=user_id)
     if os.path.exists(cache_path):
         logger.info("cache exists")
         with open(cache_path, 'r', encoding='utf-8') as f:
             episodes = json.load(f)
-        with open('data/crawler_cache_included_{user_id}.json'.format(user_id=user_id), 'r', encoding='utf-8') as f:
+        with open('api/data/crawler_cache_included_{user_id}.json'.format(user_id=user_id), 'r', encoding='utf-8') as f:
             users = json.load(f)
     if not episodes:
         while True:
@@ -52,7 +38,7 @@ def backfill_episodes_by_user(user_id: int):
             offset += limit
         with open(cache_path, 'w', encoding='utf-8') as f:
             json.dump(episodes, f, ensure_ascii=False, indent=4)
-        with open('data/crawler_cache_included_{user_id}.json'.format(user_id=user_id), 'w', encoding='utf-8') as f:
+        with open('api/data/crawler_cache_included_{user_id}.json'.format(user_id=user_id), 'w', encoding='utf-8') as f:
             json.dump(users, f, ensure_ascii=False, indent=4)
 
     logger.info("backfilling {} episodes", len(episodes))
@@ -110,13 +96,91 @@ def backfill_episodes_by_user(user_id: int):
     logger.info("done.")
 
 
+def backfill_albums():
+    albums = []
+    start_album_id = get_last_album_id(db) + 1
+    for album_id in range(start_album_id, 999999):
+        logger.info("album_id: {}", album_id)
+        try:
+            data = fetch_album(album_id)
+        except Exception as e:
+            logger.error(f"Failed to backfill album {album_id}: {e}")
+            continue
+        if not data:
+            continue
+        data = data['data']
+        albums.append(Album(
+            id=album_id,
+            title=data['attributes']['title'],
+            description=data['attributes']['description'] or '',
+            author=data['attributes']['author'] or '',
+            cover=data['attributes']['cover'] or '',
+            published_at=data['attributes']['published-at'] or '',
+            radios_count=data['attributes']['radios-count'] or 0,
+        ))
+        if album_id % 10 == 0:
+            if not albums:
+                # end of albums
+                break
+            logger.info("backfilling {} albums", album_id)
+            with get_db_session() as db:
+                batch_insert_albums(db, albums)
+            albums = []
+
+
+def backfill_episode_albums():
+    episode_albums = []
+    episodes = []
+    # for album_id in range(2, 260):
+    for album_id in models.RESERVED_ALBUM_IDS:
+        logger.info("album_id: {}", album_id)
+        try:
+            data = fetch_episode_albums(album_id)
+        except Exception as e:
+            logger.error(f"Failed to backfill album {album_id}: {e}")
+            continue
+        if not data:
+            continue
+        data = data['data']
+        for d in data:
+            episode_albums.append(EpisodeAlbum(
+                album_id=album_id,
+                episode_id=d['id'],
+            ))
+            episodes.append(Episode(
+                id=d['id'],
+                title=d['attributes']['title'],
+                desc=d['attributes']['desc'] or '',
+                excerpt=d['attributes']['excerpt'] or '',
+                thumb=d['attributes']['thumb'] or '',
+                cover=d['attributes']['cover'] or '',
+                comments_count=d['attributes']['comments-count'],
+                likes_count=d['attributes']['likes-count'],
+                bookmarks_count=d['attributes']['bookmarks-count'],
+                duration=d['attributes']['duration'] or 0,
+                is_free=d['attributes']['is-free'],
+                published_at=d['attributes']['published-at'] or '',
+            ))
+    # if not episode_albums:
+        # end of episode_albums
+        # break
+    # logger.info("backfilling {} episode_albums", album_id)
+    with get_db_session() as db:
+        # batch_insert_episode_albums(db, episode_albums)
+        batch_insert_episodes(db, episodes)
+    episode_albums = []
+    episodes = []
+
+
 if __name__ == "__main__":
     # backfill_categories()
     # user_id = 13701  # Nadya
     # user_id = 31418  # 重轻
     # user_id = 3  # 西蒙
     # user_id = 124832  # annann
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--user_id', type=int, help='user id')
-    args = parser.parse_args()
-    backfill_episodes_by_user(args.user_id)
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--user_id', type=int, help='user id')
+    # args = parser.parse_args()
+    # backfill_all_episodes_by_user(args.user_id)
+    # backfill_albums()
+    backfill_episode_albums()
