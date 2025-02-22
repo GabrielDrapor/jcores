@@ -95,11 +95,12 @@ def get_episode(db: Session, episode_id: int) -> Optional[dict]:
     return db_model_to_dict(episode)
 
 
-@cache()  # 5 minutes cache
-def get_episodes_by_user_id_and_category_id(
+@cf_kv_cache
+def get_episodes_with_filters(
     db: Session,
     user_id: int | None = None,
     category_id: int | None = None,
+    album_id: int | None = None,
     sort_field: Column | None = None,
     asc: bool = False,
     limit: int = 10,
@@ -119,6 +120,12 @@ def get_episodes_by_user_id_and_category_id(
             models.EpisodeCategory,
             models.Episode.id == models.EpisodeCategory.episode_id
         ).filter(models.EpisodeCategory.category_id == category_id)
+
+    if album_id is not None:
+        query = query.join(
+            models.EpisodeAlbum,
+            models.Episode.id == models.EpisodeAlbum.episode_id
+        ).filter(models.EpisodeAlbum.album_id == album_id)
 
     if sort_field is None:
         sort_field = models.Episode.published_at
@@ -206,3 +213,37 @@ def batch_insert_users(db: Session, users: list[models.User]):
     db.execute(stmt)
     db.commit()
     return
+
+
+def batch_insert_albums(db: Session, albums: list[models.Album]):
+    values = [
+        {k: v for k, v in album.__dict__.items() if not k.startswith('_')}
+        for album in albums
+    ]
+    stmt = insert(models.Album).values(values).on_conflict_do_nothing()
+    db.execute(stmt)
+    db.commit()
+    return
+
+
+def get_last_album_id(db: Session) -> int:
+    db_album = db.query(models.Album).order_by(
+        models.Album.id.desc()).scalar()
+    return db_album.id if db_album else 0
+
+
+def batch_insert_episode_albums(db: Session, episode_albums: list[models.EpisodeAlbum]):
+    values = [
+        {k: v for k, v in episode_album.__dict__.items() if not k.startswith('_')}
+        for episode_album in episode_albums
+    ]
+    stmt = insert(models.EpisodeAlbum).values(values).on_conflict_do_nothing()
+    db.execute(stmt)
+    db.commit()
+    return
+
+
+@cf_kv_cache
+def get_all_albums(db: Session) -> list[dict]:
+    db_albums = db.query(models.Album).order_by(models.Album.id).all()
+    return [db_model_to_dict(album) for album in db_albums]

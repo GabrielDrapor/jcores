@@ -4,6 +4,20 @@ from sqlalchemy.schema import UniqueConstraint
 
 Base = declarative_base()
 
+RESERVED_USER_IDS = (
+    13701,  # Nadya
+    31418,  # 重轻
+    124832,  # annann
+    3,  # 西蒙
+    4769,  # 杨溢
+    302894,  # 李习习
+    19879,  # moby
+    76433,  # bazinga27
+    13146  # andorgenesis4324
+)
+
+RESERVED_ALBUM_IDS = (9, 136, 145, 185, 207, 232)
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -65,3 +79,26 @@ class Category(Base):
     logo = Column(String, nullable=False)
     background = Column(String, nullable=False, default='')
     subscriptions_count = Column(Integer, nullable=False)
+
+
+class Album(Base):
+    __tablename__ = 'albums'
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    author = Column(String, nullable=False)
+    cover = Column(String, nullable=False)
+    published_at = Column(String, nullable=False)
+    radios_count = Column(Integer, nullable=False)
+
+
+class EpisodeAlbum(Base):
+    __tablename__ = 'episode_album'
+
+    album_id = Column(Integer, primary_key=True, index=True)
+    episode_id = Column(Integer, primary_key=True, index=True)
+
+    __table_args__ = (
+        UniqueConstraint('album_id', 'episode_id'),
+    )

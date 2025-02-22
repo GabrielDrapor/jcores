@@ -49,3 +49,15 @@ class Episode(BaseModel):
     # @computed_field
     # def category_id(self) -> int:
     #     return get_category_id_by_episode_id(self.id)
+
+
+class Album(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    description: str
+    author: str
+    cover: str
+    published_at: str
+    radios_count: int

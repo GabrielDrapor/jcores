@@ -3,15 +3,16 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
-const SortingSection = ({ sortField, sortOrder, onSortChange }) => {
+const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId }) => {
   const options = [
     { value: 'published_at', label: '发布时间' },
     { value: 'likes_count', label: '点赞数' },
   ];
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div className="flex items-center gap-2 justify-between w-full">
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
         {options.map((option) => (
           <button
             key={option.value}
@@ -34,11 +35,66 @@ const SortingSection = ({ sortField, sortOrder, onSortChange }) => {
         </svg>
         <span className="whitespace-nowrap">{!sortOrder ? '升序' : '降序'}</span>
       </button>
+      </div>
+      {selectedAlbumId && (
+        <a
+          href={`gcores://open?url=${encodeURIComponent(`https://www.gcores.com/albums/${selectedAlbumId}`)}`}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors bg-white shadow-sm"
+        >
+          <span className="whitespace-nowrap">查看播单</span>
+          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
+          </svg>
+        </a>
+      )}
     </div>
   );
 };
 
-const FilterSection = ({ users, categories, selectedUserId, selectedCategoryId, onUserSelect, onCategorySelect, sortField, sortOrder, onSortChange }) => {
+const AlbumList = ({ albums, selectedAlbumId, onAlbumSelect }) => {
+  return (
+    <div className="mb-6 pb-6 border-b border-gray-100">
+      <div className="flex flex-wrap gap-3">
+        {albums.map((album) => (
+          <button
+            key={album.id}
+            onClick={() => onAlbumSelect(album.id)}
+            className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+              selectedAlbumId === album.id
+                ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
+                : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${
+              selectedAlbumId === album.id
+                ? 'ring-blue-500 ring-offset-2'
+                : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'
+            }`}
+            >
+              {album.cover ? (
+                <img
+                  src={`https://image.gcores.com/${album.cover}`}
+                  alt={album.title}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-base font-medium">
+                  {album.title.slice(0, 2)}
+                </div>
+              )}
+            </div>
+            <span className="transition-colors">{album.title}</span>
+            {selectedAlbumId === album.id && (
+              <div className="w-2 h-2 rounded-full bg-blue-500 ml-2" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const FilterSection = ({ users, categories, albums, selectedUserId, selectedCategoryId, selectedAlbumId, onUserSelect, onCategorySelect, onAlbumSelect, sortField, sortOrder, onSortChange }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
       <div className="flex justify-center mb-4">
@@ -52,7 +108,10 @@ const FilterSection = ({ users, categories, selectedUserId, selectedCategoryId, 
       <UserList users={users} selectedUserId={selectedUserId} onUserSelect={onUserSelect} />
       <CategoryList categories={categories} selectedCategoryId={selectedCategoryId} onCategorySelect={onCategorySelect} />
       <div className="mt-6 pt-6 border-t border-gray-100">
-        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} />
+        <AlbumList albums={albums} selectedAlbumId={selectedAlbumId} onAlbumSelect={onAlbumSelect} />
+      </div>
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} selectedAlbumId={selectedAlbumId} />
       </div>
     </div>
   );
@@ -219,9 +278,11 @@ export default function EpisodesClient({ initialData }) {
   const [episodes, setEpisodes] = useState(initialData.episodes);
   const [users, setUsers] = useState(initialData.users);
   const [categories, setCategories] = useState(initialData.categories);
+  const [albums, setAlbums] = useState(initialData.albums);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
   const [categoryId, setCategoryId] = useState(null);
+  const [albumId, setAlbumId] = useState(null);
   const [sortField, setSortField] = useState('published_at');
   const [sortOrder, setSortOrder] = useState(true);
   const [offset, setOffset] = useState(12);
@@ -245,6 +306,7 @@ export default function EpisodesClient({ initialData }) {
         params = new URLSearchParams();
         if (userId) params.append('user_id', userId.toString());
         if (categoryId) params.append('category_id', categoryId.toString());
+        if (albumId) params.append('album_id', albumId.toString());
         if (sortField) {
           params.append('sort_field_str', sortField);
           params.append('asc', (!sortOrder).toString());  // Only send asc when sort field is selected
@@ -309,8 +371,10 @@ export default function EpisodesClient({ initialData }) {
         <FilterSection
           users={users}
           categories={categories}
+          albums={albums}
           selectedUserId={userId}
           selectedCategoryId={categoryId}
+          selectedAlbumId={albumId}
           sortField={sortField}
           sortOrder={sortOrder}
           onUserSelect={(id) => {
@@ -319,6 +383,7 @@ export default function EpisodesClient({ initialData }) {
             const params = new URLSearchParams();
             if (newUserId) params.append('user_id', newUserId.toString());
             if (categoryId) params.append('category_id', categoryId.toString());
+            if (albumId) params.append('album_id', albumId.toString());
             if (sortField) {
               params.append('sort_field_str', sortField);
               params.append('asc', (!sortOrder).toString());
@@ -333,6 +398,7 @@ export default function EpisodesClient({ initialData }) {
             const params = new URLSearchParams();
             if (userId) params.append('user_id', userId.toString());
             if (newCategoryId) params.append('category_id', newCategoryId.toString());
+            if (albumId) params.append('album_id', albumId.toString());
             if (sortField) {
               params.append('sort_field_str', sortField);
               params.append('asc', (!sortOrder).toString());
@@ -348,9 +414,25 @@ export default function EpisodesClient({ initialData }) {
             const params = new URLSearchParams();
             if (userId) params.append('user_id', userId.toString());
             if (categoryId) params.append('category_id', categoryId.toString());
+            if (albumId) params.append('album_id', albumId.toString());
             if (newSortField) {
               params.append('sort_field_str', newSortField);
               params.append('asc', (!order).toString());
+            }
+            params.append('limit', '12');
+            params.append('offset', '0');
+            fetchEpisodes(false, params);
+          }}
+          onAlbumSelect={(id) => {
+            const newAlbumId = id === albumId ? null : id;
+            setAlbumId(newAlbumId);
+            const params = new URLSearchParams();
+            if (userId) params.append('user_id', userId.toString());
+            if (categoryId) params.append('category_id', categoryId.toString());
+            if (newAlbumId) params.append('album_id', newAlbumId.toString());
+            if (sortField) {
+              params.append('sort_field_str', sortField);
+              params.append('asc', (!sortOrder).toString());
             }
             params.append('limit', '12');
             params.append('offset', '0');

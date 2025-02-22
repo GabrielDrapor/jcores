@@ -61,6 +61,26 @@ def fetch_user_episodes(user_id: int, limit: int = 12, offset: int = 0):
         response.raise_for_status()  # Raise an error for bad responses
 
 
+def fetch_album(album_id: int):
+    base_url = f'https://www.gcores.com/gapi/v1/albums/{album_id}'
+    time.sleep(1)
+    response = requests.get(base_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+
+def fetch_episode_albums(album_id: int):
+    base_url = f'https://www.gcores.com/gapi/v1/albums/{album_id}/published-audiobooks'
+    time.sleep(1)
+    response = requests.get(base_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        response.raise_for_status()
+
+
 # Example usage
 if __name__ == "__main__":
     user_id = 13701

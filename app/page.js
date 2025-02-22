@@ -9,19 +9,21 @@ export default function Home() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [usersRes, categoriesRes, episodesRes] = await Promise.all([
+        const [usersRes, categoriesRes, episodesRes, albumsRes] = await Promise.all([
           fetch('/api/py/users'),
           fetch('/api/py/categories'),
-          fetch('/api/py/episodes?limit=12&offset=0')
+          fetch('/api/py/episodes?limit=12&offset=0'),
+          fetch('/api/py/albums')
         ]);
 
-        const [users, categories, episodes] = await Promise.all([
+        const [users, categories, episodes, albums] = await Promise.all([
           usersRes.json(),
           categoriesRes.json(),
-          episodesRes.json()
+          episodesRes.json(),
+          albumsRes.json()
         ]);
 
-        setInitialData({ users, categories, episodes });
+        setInitialData({ users, categories, episodes, albums });
       } catch (error) {
         console.error('Error fetching initial data:', error);
       }
