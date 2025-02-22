@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from .models import Base  # Import the Base from models.py
 import time
 import os
+from cloudflare import Cloudflare, NotFoundError
 
 # Get DATABASE_URL from environment with a default value for local development
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -154,3 +155,83 @@ def cache(expire: int = 3600 * 24):
             return result
         return wrapper
     return decorator
+
+
+CF_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID") or ""
+CF_EMAIL = os.getenv("CLOUDFLARE_EMAIL") or ""
+CF_API_KEY = os.getenv("CLOUDFLARE_API_KEY") or ""
+CF_NAMESPACE_ID = os.getenv("CLOUDFLARE_NAMESPACE_ID") or ""
+assert CF_ACCOUNT_ID and CF_EMAIL and CF_API_KEY and CF_NAMESPACE_ID
+
+cf_client = Cloudflare(
+    api_email=CF_EMAIL,
+    api_key=CF_API_KEY
+)
+
+
+def set_cf_kv(key: str, value: Any) -> None:
+    global cf_client
+    cf_client.kv.namespaces.values.update(
+        key_name=key,
+        account_id=CF_ACCOUNT_ID,
+        namespace_id=CF_NAMESPACE_ID,
+        metadata="",
+        value=json.dumps(value))
+
+
+def get_cf_kv(key: str) -> Optional[Any]:
+    global cf_client
+    start = time.perf_counter()
+    binary_resp = cf_client.kv.namespaces.values.get(
+        key_name=key,
+        account_id=CF_ACCOUNT_ID,
+        namespace_id=CF_NAMESPACE_ID,
+    )
+    value = json.loads(binary_resp.json()['value'])
+    logger.info(
+        f"CF kv get success, key: '{key}', used time: {time.perf_counter() - start}s")
+    return value
+
+
+def delete_cf_kv(key: str) -> None:
+    global cf_client
+    cf_client.kv.namespaces.values.delete(
+        key_name=key,
+        account_id=CF_ACCOUNT_ID,
+        namespace_id=CF_NAMESPACE_ID
+    )
+
+
+def build_cf_kv_key(prefix: str, *args) -> str:
+    """Create a Redis key with prefix and arguments"""
+    return f"cache:{prefix}:{':'.join(str(arg) for arg in args)}"
+
+
+def cf_kv_cache(func: Callable):
+    """Decorator for caching function results"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Skip first arg if it's self or db session
+        cache_args = args[1:] if args else []
+
+        # Create cache key from function name and args
+        key_parts = [str(arg) for arg in cache_args]
+        key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
+        cache_key = build_cf_kv_key(func.__name__, *key_parts)
+
+        # Try to get from cache
+        try:
+            cached_data = get_cf_kv(cache_key)
+            if cached_data is not None:
+                return cached_data
+        except NotFoundError:
+            pass
+
+        # Get from function
+        result = func(*args, **kwargs)
+
+        # Cache the result if it's not None
+        if result is not None:
+            set_cf_kv(cache_key, result)
+        return result
+    return wrapper

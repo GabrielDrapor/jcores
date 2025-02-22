@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from sqlalchemy import Column
 
-from .db import get_db_session, cache
+from .db import cf_kv_cache, get_db_session
 
 
 def db_model_to_dict(db_model_obj: Any) -> dict | None:
@@ -15,19 +15,19 @@ def db_model_to_dict(db_model_obj: Any) -> dict | None:
     return {key: item for key, item in db_model_obj.__dict__.items() if not key.startswith('_')}
 
 
-@cache()
+@cf_kv_cache
 def get_user(db: Session, user_id: int) -> Optional[dict]:
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     return db_model_to_dict(db_user)
 
 
-@cache()
+@cf_kv_cache
 def get_all_users(db: Session) -> list[dict]:
     db_users = db.query(models.User).order_by(models.User.id).all()
     return [db_model_to_dict(user) for user in db_users]
 
 
-@cache()
+@cf_kv_cache
 def get_all_categories(db: Session) -> list[dict]:
     db_categories = db.query(models.Category).order_by(
         models.Category.id).all()
@@ -58,7 +58,7 @@ def insert_user(
     return user
 
 
-@cache
+@cf_kv_cache
 def get_category(db: Session, category_id: int) -> Optional[dict]:
     db_category = db.query(models.Category).filter(
         models.Category.id == category_id).first()
@@ -88,7 +88,7 @@ def insert_category(
     return category
 
 
-@cache()
+@cf_kv_cache
 def get_episode(db: Session, episode_id: int) -> Optional[dict]:
     episode = db.query(models.Episode).filter(
         models.Episode.id == episode_id).first()
@@ -132,7 +132,7 @@ def get_episodes_by_user_id_and_category_id(
     return [db_model_to_dict(episode) for episode in episodes]
 
 
-@cache()
+@cf_kv_cache
 def get_category_id_by_episode_id(episode_id: int) -> Optional[int]:
     with get_db_session() as db:
         result = db.query(models.EpisodeCategory.category_id).filter(
@@ -188,7 +188,7 @@ def batch_insert_episode_categories(db: Session, episode_categories: list[models
     return
 
 
-@cache()
+@cf_kv_cache
 def get_user_ids_by_episode_id(episode_id: int) -> list[int]:
     """get all user_ids by episode_id in `episode_user` table"""
     with get_db_session() as db:
