@@ -16,7 +16,15 @@ RESERVED_USER_IDS = (
     13146  # andorgenesis4324
 )
 
-RESERVED_ALBUM_IDS = (9, 136, 145, 185, 207, 232)
+RESERVED_ALBUM_IDS = (
+    9,    # “恶心”的常规节目
+    133,  # 机组闲聊：聊一聊话题里的新鲜事
+    136,  # 资本·游戏
+    145,  # SPEC丨游戏帝国
+    185,  # SPEC丨《火线》导读
+    207,  # SPEC丨游戏帝国 第二季
+    232,  # SPEC｜原型
+)
 
 
 class User(Base):
