@@ -13,28 +13,28 @@ const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId })
     <div className="flex items-center gap-2 justify-between w-full">
       <div className="flex items-center gap-2">
         <div className="flex rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => onSortChange(option.value, option.value === sortField ? !sortOrder : true)}
-            className={`px-4 py-2 text-sm font-medium ${option.value === sortField
-              ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-              : 'text-gray-700 hover:bg-gray-50'
-              } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors border-r border-gray-200 last:border-r-0`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={() => onSortChange(sortField, !sortOrder)}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors bg-white shadow-sm"
-      >
-        <svg className={`w-4 h-4 transition-transform duration-200 ${!sortOrder ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
-        <span className="whitespace-nowrap">{!sortOrder ? '升序' : '降序'}</span>
-      </button>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => onSortChange(option.value, option.value === sortField ? !sortOrder : true)}
+              className={`px-4 py-2 text-sm font-medium ${option.value === sortField
+                ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                : 'text-gray-700 hover:bg-gray-50'
+                } focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors border-r border-gray-200 last:border-r-0`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => onSortChange(sortField, !sortOrder)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors bg-white shadow-sm"
+        >
+          <svg className={`w-4 h-4 transition-transform duration-200 ${!sortOrder ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+          <span className="whitespace-nowrap">{!sortOrder ? '升序' : '降序'}</span>
+        </button>
       </div>
       {selectedAlbumId && (
         <a
@@ -59,21 +59,19 @@ const AlbumList = ({ albums, selectedAlbumId, onAlbumSelect }) => {
           <button
             key={album.id}
             onClick={() => onAlbumSelect(album.id)}
-            className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
-              selectedAlbumId === album.id
+            className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selectedAlbumId === album.id
                 ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
                 : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
+              }`}
           >
-            <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${
-              selectedAlbumId === album.id
+            <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${selectedAlbumId === album.id
                 ? 'ring-blue-500 ring-offset-2'
                 : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'
-            }`}
+              }`}
             >
               {album.cover ? (
                 <img
-                  src={`https://image.gcores.com/${album.cover}`}
+                  src={`/api/py/image-proxy/${album.cover}`}
                   alt={album.title}
                   className="w-full h-full object-cover transition-transform group-hover:scale-110"
                 />
@@ -135,7 +133,7 @@ const UserList = ({ users, selectedUserId, onUserSelect }) => {
             >
               {user.thumb ? (
                 <img
-                  src={`https://image.gcores.com/${user.thumb}`}
+                  src={`/api/py/image-proxy/${user.thumb}`}
                   alt={user.nickname}
                   className="w-full h-full object-cover transition-transform group-hover:scale-110"
                 />
@@ -237,7 +235,7 @@ const EpisodeCard = ({ episode }) => {
       <div className="relative h-48 bg-gray-100 overflow-hidden">
         {episode.thumb && (
           <img
-            src={`https://image.gcores.com/${episode.thumb}`}
+            src={`/api/py/image-proxy/${episode.thumb}`}
             alt={episode.title}
             className="absolute inset-0 w-full h-full object-cover object-center"
           />

@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+import httpx
 from .db import get_db_session
 from . import models
 from .schemas import Episode, User, Category, Album
@@ -84,3 +86,28 @@ def get_albums(db: Session = Depends(get_db)):
     # sort by published_at desc
     albums = [a for a in albums if a.id in models.RESERVED_ALBUM_IDS]
     return sorted(albums, key=lambda a: a.id, reverse=True)
+
+
+@app.get("/image-proxy/{path:path}")
+async def proxy_image(path: str):
+    """Proxy endpoint for images from image.gcores.com to avoid CORS issues"""
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"https://image.gcores.com/{path}"
+            response = await client.get(url, follow_redirects=True)
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code, detail="Failed to fetch image")
+
+            headers = {key: value for key, value in response.headers.items()
+                       if key.lower() in ["content-type", "content-length", "cache-control", "etag"]}
+
+            return StreamingResponse(
+                content=response.iter_bytes(),
+                status_code=response.status_code,
+                headers=headers
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error proxying image: {str(e)}")
