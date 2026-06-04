@@ -1,13 +1,9 @@
 from typing import Optional
-from pydantic import BaseModel, computed_field
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
-from .crud import get_user_ids_by_episode_id, get_category_id_by_episode_id
+from pydantic import BaseModel
 
 
 class User(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     nickname: str
     thumb: Optional[str]
@@ -16,8 +12,6 @@ class User(BaseModel):
 
 
 class Category(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     name: str
     desc: str
@@ -27,8 +21,6 @@ class Category(BaseModel):
 
 
 class Episode(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     title: str
     desc: str
@@ -42,18 +34,8 @@ class Episode(BaseModel):
     is_free: bool
     published_at: datetime
 
-    # @computed_field
-    # def user_ids(self) -> list[int]:
-    #     return get_user_ids_by_episode_id(self.id)
-
-    # @computed_field
-    # def category_id(self) -> int:
-    #     return get_category_id_by_episode_id(self.id)
-
 
 class Album(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     title: str
     description: str
