@@ -1,23 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
 from typing import Optional
 import httpx
-from .db import get_db_session
-from . import models
 from .schemas import Episode, User, Category, Album
 from .crud import get_episodes_with_filters, get_all_users, get_all_categories, get_all_albums
+from .models import RESERVED_USER_IDS, RESERVED_ALBUM_IDS
 
 app = FastAPI(root_path="/api/py")
 
-
-def get_db():
-    with get_db_session() as db:
-        yield db
-
-
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,56 +32,44 @@ def get_episodes(
     offset: int = 0,
     sort_field_str: str | None = None,
     asc: bool = False,
-    db: Session = Depends(get_db)
 ):
-    sort_field = None
-    if sort_field_str is not None:
-        sort_field = getattr(models.Episode, sort_field_str, None)
     db_episodes = get_episodes_with_filters(
-        db,
         user_id=user_id,
         category_id=category_id,
         album_id=album_id,
         limit=limit,
         offset=offset,
-        sort_field=sort_field,
+        sort_field=sort_field_str,
         asc=asc,
     )
-    episodes = [Episode.model_validate(e) for e in db_episodes]
-    return episodes
+    return [Episode.model_validate(e) for e in db_episodes]
 
 
 @app.get("/users")
-def get_users(db: Session = Depends(get_db)):
-    db_users = get_all_users(db)
-    # temp: filter out two users
-    db_users = [u for u in db_users if u['id'] in models.RESERVED_USER_IDS]
+def get_users():
+    db_users = get_all_users()
+    db_users = [u for u in db_users if u['id'] in RESERVED_USER_IDS]
     users = [User.model_validate(u) for u in db_users]
-    # sort by followers_count desc
     return sorted(users, key=lambda u: u.followers_count, reverse=True)
 
 
 @app.get("/categories")
-def get_categories(db: Session = Depends(get_db)):
-    db_categories = get_all_categories(db)
-    # temp: filter out a few categories
+def get_categories():
+    db_categories = get_all_categories()
     categories = [Category.model_validate(c) for c in db_categories]
-    # sort by subscriptions_count desc, then categories
     return sorted(categories, key=lambda c: c.subscriptions_count, reverse=True)
 
 
 @app.get("/albums")
-def get_albums(db: Session = Depends(get_db)):
-    db_albums = get_all_albums(db)
+def get_albums():
+    db_albums = get_all_albums()
     albums = [Album.model_validate(a) for a in db_albums]
-    # sort by published_at desc
-    albums = [a for a in albums if a.id in models.RESERVED_ALBUM_IDS]
+    albums = [a for a in albums if a.id in RESERVED_ALBUM_IDS]
     return sorted(albums, key=lambda a: a.id, reverse=True)
 
 
 @app.get("/image-proxy/{path:path}")
 async def proxy_image(path: str):
-    """Proxy endpoint for images from image.gcores.com to avoid CORS issues"""
     try:
         async with httpx.AsyncClient() as client:
             url = f"https://image.gcores.com/{path}"

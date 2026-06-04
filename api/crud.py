@@ -1,249 +1,82 @@
-from typing import Optional, Any
+from typing import Optional
 
 from loguru import logger
-from . import models
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
-from sqlalchemy import Column
 
-from .db import cf_kv_cache, get_db_session
-
-
-def db_model_to_dict(db_model_obj: Any) -> dict | None:
-    if db_model_obj is None:
-        return None
-    return {key: item for key, item in db_model_obj.__dict__.items() if not key.startswith('_')}
+from .db import cf_kv_cache, d1_query, d1_execute
+from .models import RESERVED_USER_IDS, RESERVED_ALBUM_IDS
 
 
 @cf_kv_cache
-def get_user(db: Session, user_id: int) -> Optional[dict]:
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    return db_model_to_dict(db_user)
+def get_all_users() -> list[dict]:
+    return d1_query("SELECT id, nickname, thumb, followers_count, followees_count FROM users ORDER BY id")
 
 
 @cf_kv_cache
-def get_all_users(db: Session) -> list[dict]:
-    db_users = db.query(models.User).order_by(models.User.id).all()
-    return [db_model_to_dict(user) for user in db_users]
+def get_all_categories() -> list[dict]:
+    return d1_query("SELECT id, name, desc, logo, background, subscriptions_count FROM categories ORDER BY id")
 
 
 @cf_kv_cache
-def get_all_categories(db: Session) -> list[dict]:
-    db_categories = db.query(models.Category).order_by(
-        models.Category.id).all()
-    return [db_model_to_dict(category) for category in db_categories]
-
-
-def insert_user(
-    db: Session,
-    user_id: int,
-    nickname: str,
-    thumb: str,
-    followers_count: int,
-    followees_count: int,
-) -> models.User:
-    if get_user(db, user_id) is not None:
-        logger.info("user already exists: {}", user_id)
-        return
-    user = models.User(
-        id=user_id,
-        nickname=nickname,
-        thumb=thumb,
-        followers_count=followers_count,
-        followees_count=followees_count,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@cf_kv_cache
-def get_category(db: Session, category_id: int) -> Optional[dict]:
-    db_category = db.query(models.Category).filter(
-        models.Category.id == category_id).first()
-    return db_model_to_dict(db_category)
-
-
-def insert_category(
-    db: Session,
-    category_id: int,
-    name: str,
-    desc: str,
-    logo: str,
-    background: str,
-    subscriptions_count: int,
-):
-    category = models.Category(
-        id=category_id,
-        name=name,
-        desc=desc,
-        logo=logo,
-        background=background,
-        subscriptions_count=subscriptions_count,
-    )
-    db.add(category)
-    db.commit()
-    db.refresh(category)
-    return category
-
-
-@cf_kv_cache
-def get_episode(db: Session, episode_id: int) -> Optional[dict]:
-    episode = db.query(models.Episode).filter(
-        models.Episode.id == episode_id).first()
-    return db_model_to_dict(episode)
+def get_all_albums() -> list[dict]:
+    return d1_query("SELECT id, title, description, author, cover, published_at, radios_count FROM albums ORDER BY id")
 
 
 @cf_kv_cache
 def get_episodes_with_filters(
-    db: Session,
     user_id: int | None = None,
     category_id: int | None = None,
     album_id: int | None = None,
-    sort_field: Column | None = None,
+    sort_field: str | None = None,
     asc: bool = False,
     limit: int = 10,
     offset: int = 0,
 ) -> list[dict]:
+    allowed_sort = {"published_at", "likes_count", "comments_count", "bookmarks_count"}
+    if sort_field not in allowed_sort:
+        sort_field = "published_at"
+    direction = "ASC" if asc else "DESC"
 
-    query = db.query(models.Episode)
+    sql = "SELECT e.id, e.title, e.desc, e.excerpt, e.thumb, e.cover, e.comments_count, e.likes_count, e.bookmarks_count, e.duration, e.is_free, e.published_at FROM episodes e"
+    joins = []
+    conditions = []
+    params: list = []
 
     if user_id is not None:
-        query = query.join(
-            models.EpisodeUser,
-            models.Episode.id == models.EpisodeUser.episode_id
-        ).filter(models.EpisodeUser.user_id == user_id)
+        joins.append("JOIN episode_user eu ON e.id = eu.episode_id")
+        conditions.append("eu.user_id = ?")
+        params.append(user_id)
 
     if category_id is not None:
-        query = query.join(
-            models.EpisodeCategory,
-            models.Episode.id == models.EpisodeCategory.episode_id
-        ).filter(models.EpisodeCategory.category_id == category_id)
+        joins.append("JOIN episode_category ec ON e.id = ec.episode_id")
+        conditions.append("ec.category_id = ?")
+        params.append(category_id)
 
     if album_id is not None:
-        query = query.join(
-            models.EpisodeAlbum,
-            models.Episode.id == models.EpisodeAlbum.episode_id
-        ).filter(models.EpisodeAlbum.album_id == album_id)
+        joins.append("JOIN episode_album ea ON e.id = ea.episode_id")
+        conditions.append("ea.album_id = ?")
+        params.append(album_id)
 
-    if sort_field is None:
-        sort_field = models.Episode.published_at
-    if asc:
-        query = query.order_by(sort_field.asc())
-    else:
-        query = query.order_by(sort_field.desc())
+    if joins:
+        sql += " " + " ".join(joins)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
 
-    # Get from database
-    episodes = query.offset(offset).limit(limit).all()
-    return [db_model_to_dict(episode) for episode in episodes]
+    sql += f" ORDER BY e.{sort_field} {direction} LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
 
-
-@cf_kv_cache
-def get_category_id_by_episode_id(episode_id: int) -> Optional[int]:
-    with get_db_session() as db:
-        result = db.query(models.EpisodeCategory.category_id).filter(
-            models.EpisodeCategory.episode_id == episode_id
-        ).first()
-        return result[0] if result else None
-
-
-def insert_episode_category(db: Session, episode_id: int, category_id: int):
-    if get_category_id_by_episode_id(db, episode_id) == category_id:
-        logger.info("episode category already exists: {}",
-                    (episode_id, category_id))
-        return
-    episode_category = models.EpisodeCategory(
-        episode_id=episode_id, category_id=category_id)
-    db.add(episode_category)
-    db.commit()
-    return episode_category
-
-
-def batch_insert_episodes(db: Session, episodes: list[models.Episode]):
-    values = [
-        {k: v for k, v in episode.__dict__.items() if not k.startswith('_')}
-        for episode in episodes
-    ]
-    stmt = insert(models.Episode).values(values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
-
-
-def batch_insert_episode_users(db: Session, episode_users: list[models.EpisodeUser]):
-    # insert multi records, if the records already exist, it's no problem
-    values = [
-        {k: v for k, v in episode_user.__dict__.items() if not k.startswith('_')}
-        for episode_user in episode_users
-    ]
-    stmt = insert(models.EpisodeUser).values(values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
-
-
-def batch_insert_episode_categories(db: Session, episode_categories: list[models.EpisodeCategory]):
-    values = [
-        {k: v for k, v in episode_category.__dict__.items() if not k.startswith('_')}
-        for episode_category in episode_categories
-    ]
-    stmt = insert(models.EpisodeCategory).values(
-        values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
+    rows = d1_query(sql, params)
+    for row in rows:
+        row["is_free"] = bool(row["is_free"])
+    return rows
 
 
 @cf_kv_cache
 def get_user_ids_by_episode_id(episode_id: int) -> list[int]:
-    """get all user_ids by episode_id in `episode_user` table"""
-    with get_db_session() as db:
-        result = db.query(models.EpisodeUser.user_id).filter(
-            models.EpisodeUser.episode_id == episode_id).all()
-        return [row[0] for row in result]
-
-
-def batch_insert_users(db: Session, users: list[models.User]):
-    values = [
-        {k: v for k, v in user.__dict__.items() if not k.startswith('_')}
-        for user in users
-    ]
-    stmt = insert(models.User).values(values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
-
-
-def batch_insert_albums(db: Session, albums: list[models.Album]):
-    values = [
-        {k: v for k, v in album.__dict__.items() if not k.startswith('_')}
-        for album in albums
-    ]
-    stmt = insert(models.Album).values(values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
-
-
-def get_last_album_id(db: Session) -> int:
-    db_album = db.query(models.Album).order_by(
-        models.Album.id.desc()).scalar()
-    return db_album.id if db_album else 0
-
-
-def batch_insert_episode_albums(db: Session, episode_albums: list[models.EpisodeAlbum]):
-    values = [
-        {k: v for k, v in episode_album.__dict__.items() if not k.startswith('_')}
-        for episode_album in episode_albums
-    ]
-    stmt = insert(models.EpisodeAlbum).values(values).on_conflict_do_nothing()
-    db.execute(stmt)
-    db.commit()
-    return
+    rows = d1_query("SELECT user_id FROM episode_user WHERE episode_id = ?", [episode_id])
+    return [row["user_id"] for row in rows]
 
 
 @cf_kv_cache
-def get_all_albums(db: Session) -> list[dict]:
-    db_albums = db.query(models.Album).order_by(models.Album.id).all()
-    return [db_model_to_dict(album) for album in db_albums]
+def get_category_id_by_episode_id(episode_id: int) -> Optional[int]:
+    rows = d1_query("SELECT category_id FROM episode_category WHERE episode_id = ? LIMIT 1", [episode_id])
+    return rows[0]["category_id"] if rows else None
