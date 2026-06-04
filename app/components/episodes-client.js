@@ -115,45 +115,90 @@ const FilterSection = ({ users, categories, albums, selectedUserId, selectedCate
   );
 };
 
+const UserChip = ({ user, selected, onSelect }) => (
+  <button
+    onClick={() => onSelect(user.id)}
+    className={`group flex items-center gap-3 pl-2 pr-5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selected
+      ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
+      : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+  >
+    <div className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all ${selected
+      ? 'ring-blue-500 ring-offset-2'
+      : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'}`}
+    >
+      {user.thumb ? (
+        <img
+          src={`/api/py/image-proxy/${user.thumb}`}
+          alt={user.nickname}
+          className="w-full h-full object-cover transition-transform group-hover:scale-110"
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-lg font-medium">
+          {user.nickname.charAt(0).toUpperCase()}
+        </div>
+      )}
+    </div>
+    <span className="transition-colors">{user.nickname}</span>
+    {selected && (
+      <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center ml-1">
+        <svg className="w-3 h-3 text-blue-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 4l-8 8" />
+          <path d="M4 4l8 8" />
+        </svg>
+      </div>
+    )}
+  </button>
+);
+
+const TOP_N = 12;
+
 const UserList = ({ users, selectedUserId, onUserSelect }) => {
+  const [query, setQuery] = useState('');
+
+  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null;
+  const topUsers = users.slice(0, TOP_N);
+
+  const filtered = query.trim()
+    ? users.filter(u => u.nickname.toLowerCase().includes(query.trim().toLowerCase()))
+    : null;
+
+  const showUsers = filtered || topUsers;
+  const showSelectedSeparately = selectedUser && !showUsers.some(u => u.id === selectedUserId);
+
   return (
     <div className="mb-6 pb-6 border-b border-gray-100">
-      <div className="flex flex-wrap gap-3">
-        {users.map((user) => (
+      <div className="relative mb-3">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+        </svg>
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={`搜索主播... (共 ${users.length} 位)`}
+          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors"
+        />
+        {query && (
           <button
-            key={user.id}
-            onClick={() => onUserSelect(user.id)}
-            className={`group flex items-center gap-3 pl-2 pr-5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selectedUserId === user.id
-              ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
-              : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+            onClick={() => setQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <div className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all ${selectedUserId === user.id
-              ? 'ring-blue-500 ring-offset-2'
-              : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'}`}
-            >
-              {user.thumb ? (
-                <img
-                  src={`/api/py/image-proxy/${user.thumb}`}
-                  alt={user.nickname}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-lg font-medium">
-                  {user.nickname.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
-            <span className="transition-colors">{user.nickname}</span>
-            {selectedUserId === user.id && (
-              <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center ml-1">
-                <svg className="w-3 h-3 text-blue-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 4l-8 8" />
-                  <path d="M4 4l8 8" />
-                </svg>
-              </div>
-            )}
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 4l-8 8" /><path d="M4 4l8 8" />
+            </svg>
           </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {showSelectedSeparately && (
+          <UserChip user={selectedUser} selected onSelect={onUserSelect} />
+        )}
+        {showUsers.map(user => (
+          <UserChip key={user.id} user={user} selected={selectedUserId === user.id} onSelect={onUserSelect} />
         ))}
+        {filtered && filtered.length === 0 && (
+          <span className="text-sm text-gray-400 py-2">未找到匹配的主播</span>
+        )}
       </div>
     </div>
   );
