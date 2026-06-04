@@ -79,7 +79,7 @@ def sync_new_episodes():
             "page[offset]": offset,
             "sort": "-published-at",
             "include": "user,djs,category",
-            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free",
+            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free,djs,category",
         })
 
         episodes = data.get("data", [])
@@ -222,7 +222,7 @@ def sync_album_episodes():
     for album_id in RESERVED_ALBUM_IDS:
         print(f"  Album {album_id}...")
         data = gcores_get(f"albums/{album_id}/published-audiobooks", {
-            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free",
+            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free,djs,category",
         })
 
         for ep in data.get("data", []):

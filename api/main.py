@@ -5,7 +5,7 @@ from typing import Optional
 import httpx
 from .schemas import Episode, User, Category, Album
 from .crud import get_episodes_with_filters, get_all_users, get_all_categories, get_all_albums
-from .models import RESERVED_USER_IDS, RESERVED_ALBUM_IDS
+from .models import RESERVED_ALBUM_IDS
 
 app = FastAPI(root_path="/api/py")
 
@@ -56,7 +56,6 @@ def get_episodes(
 @app.get("/users")
 def get_users():
     db_users = get_all_users()
-    db_users = [u for u in db_users if u['id'] in RESERVED_USER_IDS]
     users = [User.model_validate(u) for u in db_users]
     data = [u.model_dump(mode="json") for u in sorted(users, key=lambda u: u.followers_count, reverse=True)]
     return cached_json(data)
