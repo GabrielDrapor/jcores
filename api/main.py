@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
 import httpx
 from .schemas import Episode, User, Category, Album
@@ -16,6 +16,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+CACHE_10M = "public, s-maxage=600, stale-while-revalidate=3600"
+CACHE_1D = "public, s-maxage=86400, stale-while-revalidate=604800"
+
+
+def cached_json(data, cache_control: str = CACHE_10M) -> JSONResponse:
+    return JSONResponse(content=data, headers={"Cache-Control": cache_control})
 
 
 @app.get("/health")
@@ -42,7 +49,8 @@ def get_episodes(
         sort_field=sort_field_str,
         asc=asc,
     )
-    return [Episode.model_validate(e) for e in db_episodes]
+    data = [Episode.model_validate(e).model_dump(mode="json") for e in db_episodes]
+    return cached_json(data)
 
 
 @app.get("/users")
@@ -50,14 +58,16 @@ def get_users():
     db_users = get_all_users()
     db_users = [u for u in db_users if u['id'] in RESERVED_USER_IDS]
     users = [User.model_validate(u) for u in db_users]
-    return sorted(users, key=lambda u: u.followers_count, reverse=True)
+    data = [u.model_dump(mode="json") for u in sorted(users, key=lambda u: u.followers_count, reverse=True)]
+    return cached_json(data)
 
 
 @app.get("/categories")
 def get_categories():
     db_categories = get_all_categories()
     categories = [Category.model_validate(c) for c in db_categories]
-    return sorted(categories, key=lambda c: c.subscriptions_count, reverse=True)
+    data = [c.model_dump(mode="json") for c in sorted(categories, key=lambda c: c.subscriptions_count, reverse=True)]
+    return cached_json(data)
 
 
 @app.get("/albums")
@@ -65,7 +75,8 @@ def get_albums():
     db_albums = get_all_albums()
     albums = [Album.model_validate(a) for a in db_albums]
     albums = [a for a in albums if a.id in RESERVED_ALBUM_IDS]
-    return sorted(albums, key=lambda a: a.id, reverse=True)
+    data = [a.model_dump(mode="json") for a in sorted(albums, key=lambda a: a.id, reverse=True)]
+    return cached_json(data)
 
 
 @app.get("/image-proxy/{path:path}")
@@ -81,6 +92,7 @@ async def proxy_image(path: str):
 
             headers = {key: value for key, value in response.headers.items()
                        if key.lower() in ["content-type", "content-length", "cache-control", "etag"]}
+            headers["Cache-Control"] = CACHE_1D
 
             return StreamingResponse(
                 content=response.iter_bytes(),
