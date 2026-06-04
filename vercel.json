@@ -12,6 +12,27 @@
     ],
     "routes": [
         {
+            "src": "/api/py/(users|categories|albums)$",
+            "dest": "/api/main.py",
+            "headers": {
+                "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600"
+            }
+        },
+        {
+            "src": "/api/py/episodes(\\?.*)?$",
+            "dest": "/api/main.py",
+            "headers": {
+                "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600"
+            }
+        },
+        {
+            "src": "/api/py/image-proxy/(.*)",
+            "dest": "/api/main.py",
+            "headers": {
+                "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800"
+            }
+        },
+        {
             "src": "/api/(.*)",
             "dest": "/api/main.py"
         }
