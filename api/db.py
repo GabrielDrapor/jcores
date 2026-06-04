@@ -7,7 +7,6 @@ from loguru import logger
 import time
 import httpx
 from dotenv import load_dotenv
-from cloudflare import Cloudflare, NotFoundError
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
 
@@ -19,10 +18,10 @@ D1_DATABASE_ID = (os.getenv("D1_DATABASE_ID") or "").strip()
 assert CF_ACCOUNT_ID and CF_EMAIL and CF_API_KEY and CF_NAMESPACE_ID and D1_DATABASE_ID
 
 D1_API = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/d1/database/{D1_DATABASE_ID}/query"
-D1_HEADERS = {
+KV_API = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/storage/kv/namespaces/{CF_NAMESPACE_ID}/values"
+CF_HEADERS = {
     "X-Auth-Email": CF_EMAIL,
     "X-Auth-Key": CF_API_KEY,
-    "Content-Type": "application/json",
 }
 
 _http_client: httpx.Client | None = None
@@ -35,12 +34,14 @@ def _get_client() -> httpx.Client:
     return _http_client
 
 
+# --- D1 ---
+
 def d1_query(sql: str, params: list | None = None) -> list[dict]:
     body: dict[str, Any] = {"sql": sql}
     if params:
         body["params"] = params
     start = time.perf_counter()
-    resp = _get_client().post(D1_API, headers=D1_HEADERS, json=body)
+    resp = _get_client().post(D1_API, headers={**CF_HEADERS, "Content-Type": "application/json"}, json=body)
     data = resp.json()
     elapsed = time.perf_counter() - start
     if not data.get("success"):
@@ -50,61 +51,26 @@ def d1_query(sql: str, params: list | None = None) -> list[dict]:
     return data["result"][0].get("results", [])
 
 
-def d1_execute(sql: str, params: list | None = None) -> int:
-    body: dict[str, Any] = {"sql": sql}
-    if params:
-        body["params"] = params
-    resp = _get_client().post(D1_API, headers=D1_HEADERS, json=body)
-    data = resp.json()
-    if not data.get("success"):
-        logger.error(f"D1 execute failed: {data.get('errors')} | SQL: {sql[:200]}")
-        raise RuntimeError(f"D1 execute failed: {data.get('errors')}")
-    return data["result"][0]["meta"]["changes"]
+# --- Cloudflare KV (raw httpx, no SDK) ---
+
+KV_TTL = 3600  # 1 hour
 
 
-# --- Cloudflare KV cache (unchanged) ---
-
-cf_client = Cloudflare(
-    api_email=CF_EMAIL,
-    api_key=CF_API_KEY
-)
-
-
-def set_cf_kv(key: str, value: Any) -> None:
-    global cf_client
-    cf_client.kv.namespaces.values.update(
-        key_name=key,
-        account_id=CF_ACCOUNT_ID,
-        namespace_id=CF_NAMESPACE_ID,
-        metadata="",
-        value=json.dumps(value))
+def _kv_get(key: str) -> Optional[Any]:
+    resp = _get_client().get(f"{KV_API}/{key}", headers=CF_HEADERS)
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    return json.loads(resp.content)
 
 
-def get_cf_kv(key: str) -> Optional[Any]:
-    global cf_client
-    start = time.perf_counter()
-    binary_resp = cf_client.kv.namespaces.values.get(
-        key_name=key,
-        account_id=CF_ACCOUNT_ID,
-        namespace_id=CF_NAMESPACE_ID,
+def _kv_put(key: str, value: Any) -> None:
+    _get_client().put(
+        f"{KV_API}/{key}",
+        headers=CF_HEADERS,
+        data=json.dumps(value),
+        params={"expiration_ttl": KV_TTL},
     )
-    value = json.loads(binary_resp.json()['value'])
-    logger.info(
-        f"CF kv get success, key: '{key}', used time: {time.perf_counter() - start}s")
-    return value
-
-
-def delete_cf_kv(key: str) -> None:
-    global cf_client
-    cf_client.kv.namespaces.values.delete(
-        key_name=key,
-        account_id=CF_ACCOUNT_ID,
-        namespace_id=CF_NAMESPACE_ID
-    )
-
-
-def build_cf_kv_key(prefix: str, *args) -> str:
-    return f"cache:{prefix}:{':'.join(str(arg) for arg in args)}"
 
 
 def cf_kv_cache(func: Callable):
@@ -112,18 +78,23 @@ def cf_kv_cache(func: Callable):
     def wrapper(*args, **kwargs):
         key_parts = [str(arg) for arg in args]
         key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
-        cache_key = build_cf_kv_key(func.__name__, *key_parts)
+        cache_key = f"cache:{func.__name__}:{':'.join(key_parts)}"
 
+        start = time.perf_counter()
         try:
-            cached_data = get_cf_kv(cache_key)
-            if cached_data is not None:
-                return cached_data
-        except NotFoundError:
-            pass
+            cached = _kv_get(cache_key)
+            if cached is not None:
+                logger.info(f"KV hit ({time.perf_counter() - start:.3f}s): {cache_key}")
+                return cached
+        except Exception as e:
+            logger.warning(f"KV get failed: {e}")
 
         result = func(*args, **kwargs)
 
         if result is not None:
-            set_cf_kv(cache_key, result)
+            try:
+                _kv_put(cache_key, result)
+            except Exception as e:
+                logger.warning(f"KV put failed: {e}")
         return result
     return wrapper

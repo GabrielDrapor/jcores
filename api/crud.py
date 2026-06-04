@@ -1,9 +1,4 @@
-from typing import Optional
-
-from loguru import logger
-
-from .db import cf_kv_cache, d1_query, d1_execute
-from .models import RESERVED_USER_IDS, RESERVED_ALBUM_IDS
+from .db import cf_kv_cache, d1_query
 
 
 @cf_kv_cache
@@ -21,7 +16,6 @@ def get_all_albums() -> list[dict]:
     return d1_query("SELECT id, title, description, author, cover, published_at, radios_count FROM albums ORDER BY id")
 
 
-@cf_kv_cache
 def get_episodes_with_filters(
     user_id: int | None = None,
     category_id: int | None = None,
@@ -68,15 +62,3 @@ def get_episodes_with_filters(
     for row in rows:
         row["is_free"] = bool(row["is_free"])
     return rows
-
-
-@cf_kv_cache
-def get_user_ids_by_episode_id(episode_id: int) -> list[int]:
-    rows = d1_query("SELECT user_id FROM episode_user WHERE episode_id = ?", [episode_id])
-    return [row["user_id"] for row in rows]
-
-
-@cf_kv_cache
-def get_category_id_by_episode_id(episode_id: int) -> Optional[int]:
-    rows = d1_query("SELECT category_id FROM episode_category WHERE episode_id = ? LIMIT 1", [episode_id])
-    return rows[0]["category_id"] if rows else None
