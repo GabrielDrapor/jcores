@@ -51,247 +51,184 @@ const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId })
   );
 };
 
-const AlbumChip = ({ album, selected, onSelect }) => (
-  <button
-    onClick={() => onSelect(album.id)}
-    className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selected
-      ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
-      : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-    }`}
-  >
-    <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${selected
-      ? 'ring-blue-500 ring-offset-2'
-      : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'
-    }`}>
-      {album.cover ? (
-        <img
-          src={`/api/py/image-proxy/${album.cover}`}
-          alt={album.title}
-          className="w-full h-full object-cover transition-transform group-hover:scale-110"
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-base font-medium">
-          {album.title.slice(0, 2)}
-        </div>
-      )}
-    </div>
-    <span className="transition-colors">{album.title}</span>
-    {selected && (
-      <div className="w-2 h-2 rounded-full bg-blue-500 ml-2" />
+const SearchInput = ({ value, onChange, placeholder }) => (
+  <div className="relative mb-3">
+    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+    </svg>
+    <input
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors"
+    />
+    {value && (
+      <button onClick={() => onChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M12 4l-8 8" /><path d="M4 4l8 8" />
+        </svg>
+      </button>
     )}
-  </button>
+  </div>
 );
 
+const GRADIENTS = [
+  'from-purple-100 to-pink-200', 'from-cyan-100 to-blue-200', 'from-green-100 to-emerald-200',
+  'from-orange-100 to-red-200', 'from-pink-100 to-rose-200', 'from-indigo-100 to-violet-200',
+  'from-yellow-100 to-orange-200', 'from-blue-100 to-indigo-200', 'from-red-100 to-rose-200',
+  'from-teal-100 to-cyan-200',
+];
+
+const TABS = [
+  { key: 'users', label: '主播' },
+  { key: 'categories', label: '分类' },
+  { key: 'albums', label: '播单' },
+];
+const TOP_USERS = 12;
 const TOP_ALBUMS = 9;
 
-const AlbumList = ({ albums, selectedAlbumId, onAlbumSelect }) => {
+const FilterSection = ({ users, categories, albums, selectedUserId, selectedCategoryId, selectedAlbumId, onUserSelect, onCategorySelect, onAlbumSelect, sortField, sortOrder, onSortChange }) => {
+  const [activeTab, setActiveTab] = useState('users');
   const [query, setQuery] = useState('');
 
-  const selectedAlbum = selectedAlbumId ? albums.find(a => a.id === selectedAlbumId) : null;
-  const topAlbums = albums.slice(0, TOP_ALBUMS);
+  const activeCount = (selectedUserId ? 1 : 0) + (selectedCategoryId ? 1 : 0) + (selectedAlbumId ? 1 : 0);
 
-  const filtered = query.trim()
-    ? albums.filter(a => a.title.toLowerCase().includes(query.trim().toLowerCase()))
-    : null;
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setQuery('');
+  };
 
-  const showAlbums = filtered || topAlbums;
-  const showSelectedSeparately = selectedAlbum && !showAlbums.some(a => a.id === selectedAlbumId);
-
-  return (
-    <div className="mb-6 pb-6 border-b border-gray-100">
-      <div className="relative mb-3">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={`搜索播单... (共 ${albums.length} 个)`}
-          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 4l-8 8" /><path d="M4 4l8 8" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {showSelectedSeparately && (
-          <AlbumChip album={selectedAlbum} selected onSelect={onAlbumSelect} />
-        )}
-        {showAlbums.map(album => (
-          <AlbumChip key={album.id} album={album} selected={selectedAlbumId === album.id} onSelect={onAlbumSelect} />
-        ))}
-        {filtered && filtered.length === 0 && (
-          <span className="text-sm text-gray-400 py-2">未找到匹配的播单</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const FilterSection = ({ users, categories, albums, selectedUserId, selectedCategoryId, selectedAlbumId, onUserSelect, onCategorySelect, onAlbumSelect, sortField, sortOrder, onSortChange }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-      <div className="flex justify-center mb-4">
-        <img
-          src="/logo.webp"
-          alt="Logo"
-          className="h-24 w-auto"
-          suppressHydrationWarning
-        />
+      <div className="flex justify-center mb-5">
+        <img src="/logo.webp" alt="Logo" className="h-24 w-auto" suppressHydrationWarning />
       </div>
-      <UserList users={users} selectedUserId={selectedUserId} onUserSelect={onUserSelect} />
-      <CategoryList categories={categories} selectedCategoryId={selectedCategoryId} onCategorySelect={onCategorySelect} />
-      <div className="mt-6 pt-6 border-t border-gray-100">
-        <AlbumList albums={albums} selectedAlbumId={selectedAlbumId} onAlbumSelect={onAlbumSelect} />
-      </div>
-      <div className="mt-6 pt-6 border-t border-gray-100">
-        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} selectedAlbumId={selectedAlbumId} />
-      </div>
-    </div>
-  );
-};
 
-const UserChip = ({ user, selected, onSelect }) => (
-  <button
-    onClick={() => onSelect(user.id)}
-    className={`group flex items-center gap-3 pl-2 pr-5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selected
-      ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
-      : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
-  >
-    <div className={`w-10 h-10 rounded-full overflow-hidden ring-2 transition-all ${selected
-      ? 'ring-blue-500 ring-offset-2'
-      : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'}`}
-    >
-      {user.thumb ? (
-        <img
-          src={`/api/py/image-proxy/${user.thumb}`}
-          alt={user.nickname}
-          className="w-full h-full object-cover transition-transform group-hover:scale-110"
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-lg font-medium">
-          {user.nickname.charAt(0).toUpperCase()}
+      {activeCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-gray-100">
+          <span className="text-xs text-gray-400 mr-1">筛选中</span>
+          {selectedUserId && (() => {
+            const u = users.find(u => u.id === selectedUserId);
+            return u ? (
+              <button onClick={() => onUserSelect(selectedUserId)} className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+                <div className="w-5 h-5 rounded-full overflow-hidden ring-1 ring-blue-300">
+                  {u.thumb ? <img src={`/api/py/image-proxy/${u.thumb}`} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-blue-200" />}
+                </div>
+                {u.nickname}
+                <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4l-8 8M4 4l8 8" /></svg>
+              </button>
+            ) : null;
+          })()}
+          {selectedCategoryId && (() => {
+            const c = categories.find(c => c.id === selectedCategoryId);
+            return c ? (
+              <button onClick={() => onCategorySelect(selectedCategoryId)} className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+                {c.name}
+                <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4l-8 8M4 4l8 8" /></svg>
+              </button>
+            ) : null;
+          })()}
+          {selectedAlbumId && (() => {
+            const a = albums.find(a => a.id === selectedAlbumId);
+            return a ? (
+              <button onClick={() => onAlbumSelect(selectedAlbumId)} className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+                <div className="w-5 h-5 rounded-lg overflow-hidden ring-1 ring-blue-300">
+                  {a.cover ? <img src={`/api/py/image-proxy/${a.cover}`} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-blue-200" />}
+                </div>
+                {a.title}
+                <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4l-8 8M4 4l8 8" /></svg>
+              </button>
+            ) : null;
+          })()}
         </div>
       )}
-    </div>
-    <span className="transition-colors">{user.nickname}</span>
-    {selected && (
-      <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center ml-1">
-        <svg className="w-3 h-3 text-blue-600" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 4l-8 8" />
-          <path d="M4 4l8 8" />
-        </svg>
-      </div>
-    )}
-  </button>
-);
 
-const TOP_N = 12;
-
-const UserList = ({ users, selectedUserId, onUserSelect }) => {
-  const [query, setQuery] = useState('');
-
-  const selectedUser = selectedUserId ? users.find(u => u.id === selectedUserId) : null;
-  const topUsers = users.slice(0, TOP_N);
-
-  const filtered = query.trim()
-    ? users.filter(u => u.nickname.toLowerCase().includes(query.trim().toLowerCase()))
-    : null;
-
-  const showUsers = filtered || topUsers;
-  const showSelectedSeparately = selectedUser && !showUsers.some(u => u.id === selectedUserId);
-
-  return (
-    <div className="mb-6 pb-6 border-b border-gray-100">
-      <div className="relative mb-3">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={`搜索主播... (共 ${users.length} 位)`}
-          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors"
-        />
-        {query && (
+      <div className="flex gap-1 mb-4">
+        {TABS.map(tab => (
           <button
-            onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            key={tab.key}
+            onClick={() => handleTabChange(tab.key)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === tab.key
+              ? 'bg-gray-900 text-white'
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
           >
-            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 4l-8 8" /><path d="M4 4l8 8" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {showSelectedSeparately && (
-          <UserChip user={selectedUser} selected onSelect={onUserSelect} />
-        )}
-        {showUsers.map(user => (
-          <UserChip key={user.id} user={user} selected={selectedUserId === user.id} onSelect={onUserSelect} />
-        ))}
-        {filtered && filtered.length === 0 && (
-          <span className="text-sm text-gray-400 py-2">未找到匹配的主播</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const CategoryList = ({ categories, selectedCategoryId, onCategorySelect }) => {
-  // Function to generate a random gradient
-  const getRandomGradient = (id) => {
-    // Use category id to keep the gradient consistent for each category
-    const gradients = [
-      'from-purple-100 to-pink-200',
-      'from-cyan-100 to-blue-200',
-      'from-green-100 to-emerald-200',
-      'from-orange-100 to-red-200',
-      'from-pink-100 to-rose-200',
-      'from-indigo-100 to-violet-200',
-      'from-yellow-100 to-orange-200',
-      'from-blue-100 to-indigo-200',
-      'from-red-100 to-rose-200',
-      'from-teal-100 to-cyan-200',
-    ];
-    return gradients[id % gradients.length];
-  };
-  return (
-    <div className="mb-6">
-      <div className="flex flex-wrap gap-2">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => onCategorySelect(category.id)}
-            className={`px-4 py-2 text-base font-mono font-bold tracking-tight whitespace-nowrap transition-all
-              ${selectedCategoryId === category.id
-                ? `bg-gradient-to-r ${getRandomGradient(category.id)} text-gray-800 shadow-lg shadow-current/20 hover:shadow-current/30 hover:-translate-y-0.5 saturate-[1.2]`
-                : `bg-gradient-to-r ${getRandomGradient(category.id)} text-gray-600 hover:text-gray-800 opacity-90 hover:opacity-100 saturate-[0.9] hover:saturate-[1.2]`}
-              rounded-md border border-black/5 backdrop-blur-sm
-              transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-150
-              hover:border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
-          >
-            <span className="relative">
-              {category.name}
-              {selectedCategoryId === category.id && (
-                <span className="absolute -right-3 top-0.5 flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-200 opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-400"></span>
-                </span>
-              )}
+            {tab.label}
+            <span className="ml-1.5 text-xs opacity-60">
+              {tab.key === 'users' ? users.length : tab.key === 'categories' ? categories.length : albums.length}
             </span>
           </button>
         ))}
+      </div>
+
+      {activeTab === 'users' && (
+        <>
+          <SearchInput value={query} onChange={setQuery} placeholder={`搜索主播...`} />
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const filtered = query.trim() ? users.filter(u => u.nickname.toLowerCase().includes(query.trim().toLowerCase())) : users.slice(0, TOP_USERS);
+              return filtered.length > 0 ? filtered.map(user => (
+                <button key={user.id} onClick={() => onUserSelect(user.id)}
+                  className={`group flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all hover:scale-[1.02] active:scale-[0.98] ${selectedUserId === user.id
+                    ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 shadow-sm'
+                    : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                  <div className={`w-8 h-8 rounded-full overflow-hidden ring-1.5 ${selectedUserId === user.id ? 'ring-blue-500' : 'ring-gray-200'}`}>
+                    {user.thumb ? <img src={`/api/py/image-proxy/${user.thumb}`} alt={user.nickname} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-xs">{user.nickname.charAt(0)}</div>}
+                  </div>
+                  <span>{user.nickname}</span>
+                </button>
+              )) : <span className="text-sm text-gray-400 py-2">未找到匹配的主播</span>;
+            })()}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'categories' && (
+        <>
+          <SearchInput value={query} onChange={setQuery} placeholder={`搜索分类...`} />
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const filtered = query.trim() ? categories.filter(c => c.name.toLowerCase().includes(query.trim().toLowerCase())) : categories;
+              return filtered.length > 0 ? filtered.map(cat => (
+                <button key={cat.id} onClick={() => onCategorySelect(cat.id)}
+                  className={`px-3.5 py-1.5 text-sm font-mono font-bold tracking-tight whitespace-nowrap rounded-md border border-black/5 transition-all hover:scale-[1.02] active:scale-[0.98]
+                    ${selectedCategoryId === cat.id
+                      ? `bg-gradient-to-r ${GRADIENTS[cat.id % GRADIENTS.length]} text-gray-800 shadow-md saturate-[1.2]`
+                      : `bg-gradient-to-r ${GRADIENTS[cat.id % GRADIENTS.length]} text-gray-600 opacity-80 hover:opacity-100 saturate-[0.8] hover:saturate-[1.1]`}`}>
+                  {cat.name}
+                </button>
+              )) : <span className="text-sm text-gray-400 py-2">未找到匹配的分类</span>;
+            })()}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'albums' && (
+        <>
+          <SearchInput value={query} onChange={setQuery} placeholder={`搜索播单...`} />
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              const filtered = query.trim() ? albums.filter(a => a.title.toLowerCase().includes(query.trim().toLowerCase())) : albums.slice(0, TOP_ALBUMS);
+              return filtered.length > 0 ? filtered.map(album => (
+                <button key={album.id} onClick={() => onAlbumSelect(album.id)}
+                  className={`group flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all hover:scale-[1.02] active:scale-[0.98] ${selectedAlbumId === album.id
+                    ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 shadow-sm'
+                    : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                  <div className={`w-10 h-10 rounded-md overflow-hidden ring-1.5 ${selectedAlbumId === album.id ? 'ring-blue-500' : 'ring-gray-200'}`}>
+                    {album.cover ? <img src={`/api/py/image-proxy/${album.cover}`} alt={album.title} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-xs">{album.title.slice(0, 2)}</div>}
+                  </div>
+                  <span>{album.title}</span>
+                </button>
+              )) : <span className="text-sm text-gray-400 py-2">未找到匹配的播单</span>;
+            })()}
+          </div>
+        </>
+      )}
+
+      <div className="mt-5 pt-5 border-t border-gray-100">
+        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} selectedAlbumId={selectedAlbumId} />
       </div>
     </div>
   );
