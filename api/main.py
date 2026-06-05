@@ -73,8 +73,7 @@ def get_categories():
 def get_albums():
     db_albums = get_all_albums()
     albums = [Album.model_validate(a) for a in db_albums]
-    albums = [a for a in albums if a.id in RESERVED_ALBUM_IDS]
-    data = [a.model_dump(mode="json") for a in sorted(albums, key=lambda a: a.id, reverse=True)]
+    data = [a.model_dump(mode="json") for a in sorted(albums, key=lambda a: a.radios_count, reverse=True)]
     return cached_json(data)
 
 

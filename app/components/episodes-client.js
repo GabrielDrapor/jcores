@@ -51,42 +51,86 @@ const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId })
   );
 };
 
+const AlbumChip = ({ album, selected, onSelect }) => (
+  <button
+    onClick={() => onSelect(album.id)}
+    className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selected
+      ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
+      : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+    }`}
+  >
+    <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${selected
+      ? 'ring-blue-500 ring-offset-2'
+      : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'
+    }`}>
+      {album.cover ? (
+        <img
+          src={`/api/py/image-proxy/${album.cover}`}
+          alt={album.title}
+          className="w-full h-full object-cover transition-transform group-hover:scale-110"
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-base font-medium">
+          {album.title.slice(0, 2)}
+        </div>
+      )}
+    </div>
+    <span className="transition-colors">{album.title}</span>
+    {selected && (
+      <div className="w-2 h-2 rounded-full bg-blue-500 ml-2" />
+    )}
+  </button>
+);
+
+const TOP_ALBUMS = 9;
+
 const AlbumList = ({ albums, selectedAlbumId, onAlbumSelect }) => {
+  const [query, setQuery] = useState('');
+
+  const selectedAlbum = selectedAlbumId ? albums.find(a => a.id === selectedAlbumId) : null;
+  const topAlbums = albums.slice(0, TOP_ALBUMS);
+
+  const filtered = query.trim()
+    ? albums.filter(a => a.title.toLowerCase().includes(query.trim().toLowerCase()))
+    : null;
+
+  const showAlbums = filtered || topAlbums;
+  const showSelectedSeparately = selectedAlbum && !showAlbums.some(a => a.id === selectedAlbumId);
+
   return (
     <div className="mb-6 pb-6 border-b border-gray-100">
-      <div className="flex flex-wrap gap-3">
-        {albums.map((album) => (
+      <div className="relative mb-3">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+        </svg>
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={`搜索播单... (共 ${albums.length} 个)`}
+          className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors"
+        />
+        {query && (
           <button
-            key={album.id}
-            onClick={() => onAlbumSelect(album.id)}
-            className={`group flex items-center gap-3 pl-2 pr-5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all transform hover:scale-[1.02] active:scale-[0.98] ${selectedAlbumId === album.id
-                ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 hover:bg-blue-100 shadow-sm hover:shadow'
-                : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+            onClick={() => setQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            <div className={`w-12 h-12 rounded-lg overflow-hidden ring-2 transition-all ${selectedAlbumId === album.id
-                ? 'ring-blue-500 ring-offset-2'
-                : 'ring-gray-200 group-hover:ring-gray-300 group-hover:ring-offset-1'
-              }`}
-            >
-              {album.cover ? (
-                <img
-                  src={`/api/py/image-proxy/${album.cover}`}
-                  alt={album.title}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-base font-medium">
-                  {album.title.slice(0, 2)}
-                </div>
-              )}
-            </div>
-            <span className="transition-colors">{album.title}</span>
-            {selectedAlbumId === album.id && (
-              <div className="w-2 h-2 rounded-full bg-blue-500 ml-2" />
-            )}
+            <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 4l-8 8" /><path d="M4 4l8 8" />
+            </svg>
           </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {showSelectedSeparately && (
+          <AlbumChip album={selectedAlbum} selected onSelect={onAlbumSelect} />
+        )}
+        {showAlbums.map(album => (
+          <AlbumChip key={album.id} album={album} selected={selectedAlbumId === album.id} onSelect={onAlbumSelect} />
         ))}
+        {filtered && filtered.length === 0 && (
+          <span className="text-sm text-gray-400 py-2">未找到匹配的播单</span>
+        )}
       </div>
     </div>
   );
