@@ -66,8 +66,10 @@ def sync_new_episodes():
     new_episodes = []
     new_users = {}
     new_categories = {}
+    new_albums = {}
     episode_users = []
     episode_categories = []
+    episode_albums = []
     offset = 0
     page_size = 20
     stop = False
@@ -78,8 +80,8 @@ def sync_new_episodes():
             "page[limit]": page_size,
             "page[offset]": offset,
             "sort": "-published-at",
-            "include": "user,djs,category",
-            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free,djs,category",
+            "include": "user,djs,category,albums",
+            "fields[radios]": "title,desc,excerpt,thumb,cover,comments-count,likes-count,bookmarks-count,published-at,duration,is-free,djs,category,albums",
         })
 
         episodes = data.get("data", [])
@@ -112,6 +114,9 @@ def sync_new_episodes():
             if cat_data:
                 episode_categories.append((eid, int(cat_data["id"])))
 
+            for alb in ep.get("relationships", {}).get("albums", {}).get("data", []):
+                episode_albums.append((int(alb["id"]), eid))
+
         for inc in data.get("included", []):
             if inc["type"] == "users":
                 uid = int(inc["id"])
@@ -119,6 +124,13 @@ def sync_new_episodes():
                 new_users[uid] = (
                     uid, ua.get("nickname", ""), ua.get("thumb") or "",
                     ua.get("followers-count", 0), ua.get("followees-count", 0),
+                )
+            elif inc["type"] == "albums":
+                aid = int(inc["id"])
+                aa = inc["attributes"]
+                new_albums[aid] = (
+                    aid, aa.get("title", ""), aa.get("description") or "", aa.get("author") or "",
+                    aa.get("cover") or "", aa.get("published-at") or "", aa.get("radios-count", 0),
                 )
             elif inc["type"] == "categories":
                 cid = int(inc["id"])
@@ -131,7 +143,7 @@ def sync_new_episodes():
 
         offset += page_size
 
-    print(f"  Found {len(new_episodes)} new episodes, {len(new_users)} users, {len(new_categories)} categories")
+    print(f"  Found {len(new_episodes)} new episodes, {len(new_users)} users, {len(new_categories)} categories, {len(new_albums)} albums")
 
     for ep in new_episodes:
         d1("INSERT OR IGNORE INTO episodes (id,title,desc,excerpt,thumb,cover,comments_count,likes_count,bookmarks_count,duration,is_free,published_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", list(ep))
@@ -142,11 +154,17 @@ def sync_new_episodes():
     for c in new_categories.values():
         d1("INSERT OR REPLACE INTO categories (id,name,desc,logo,background,subscriptions_count) VALUES (?,?,?,?,?,?)", list(c))
 
+    for a in new_albums.values():
+        d1("INSERT OR REPLACE INTO albums (id,title,description,author,cover,published_at,radios_count) VALUES (?,?,?,?,?,?,?)", list(a))
+
     for eid, uid in episode_users:
         d1("INSERT OR IGNORE INTO episode_user (episode_id,user_id) VALUES (?,?)", [eid, uid])
 
     for eid, cid in episode_categories:
         d1("INSERT OR IGNORE INTO episode_category (episode_id,category_id) VALUES (?,?)", [eid, cid])
+
+    for aid, eid in episode_albums:
+        d1("INSERT OR IGNORE INTO episode_album (album_id,episode_id) VALUES (?,?)", [aid, eid])
 
     return len(new_episodes)
 
@@ -186,28 +204,42 @@ def update_episode_stats():
 # --- Sync albums ---
 
 def sync_albums():
-    """Fetch new albums and update episode-album links for reserved albums."""
+    """Fetch all albums, insert any missing ones."""
     print("=== Syncing albums ===")
 
-    max_album = d1_query("SELECT MAX(id) as m FROM albums")[0]["m"] or 0
-    print(f"  Max album id in D1: {max_album}")
-
-    data = gcores_get("albums", {
-        "page[limit]": 50,
-        "sort": "-published-at",
-        "fields[albums]": "title,description,author,cover,published-at,radios-count",
-    })
+    existing_ids = {r["id"] for r in d1_query("SELECT id FROM albums")}
+    print(f"  Albums in D1: {len(existing_ids)}")
 
     new_count = 0
-    for album in data.get("data", []):
-        aid = int(album["id"])
-        if aid <= max_album:
-            continue
-        a = album["attributes"]
-        d1("INSERT OR IGNORE INTO albums (id,title,description,author,cover,published_at,radios_count) VALUES (?,?,?,?,?,?,?)",
-           [aid, a.get("title", ""), a.get("description") or "", a.get("author") or "",
-            a.get("cover") or "", a.get("published-at") or "", a.get("radios-count", 0)])
-        new_count += 1
+    offset = 0
+    while True:
+        data = gcores_get("albums", {
+            "page[limit]": 50,
+            "page[offset]": offset,
+            "sort": "-published-at",
+            "fields[albums]": "title,description,author,cover,published-at,radios-count",
+        })
+        albums = data.get("data", [])
+        if not albums:
+            break
+
+        all_known = True
+        for album in albums:
+            aid = int(album["id"])
+            if aid in existing_ids:
+                continue
+            all_known = False
+            a = album["attributes"]
+            d1("INSERT OR IGNORE INTO albums (id,title,description,author,cover,published_at,radios_count) VALUES (?,?,?,?,?,?,?)",
+               [aid, a.get("title", ""), a.get("description") or "", a.get("author") or "",
+                a.get("cover") or "", a.get("published-at") or "", a.get("radios-count", 0)])
+            existing_ids.add(aid)
+            new_count += 1
+
+        offset += 50
+        total = data.get("meta", {}).get("record-count", 0)
+        if offset >= total:
+            break
 
     print(f"  Added {new_count} new albums")
     return new_count
