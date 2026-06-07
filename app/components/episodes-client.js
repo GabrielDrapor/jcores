@@ -38,7 +38,7 @@ const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId })
       </div>
       {selectedAlbumId && (
         <a
-          href={`gcores://open?url=${encodeURIComponent(`https://www.gcores.com/albums/${selectedAlbumId}`)}`}
+          href={`https://www.gcores.com/albums/${selectedAlbumId}`}
           className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors bg-white shadow-sm"
         >
           <span className="whitespace-nowrap">查看播单</span>
@@ -254,7 +254,7 @@ const EpisodeCardSkeleton = () => {
 const EpisodeCard = ({ episode }) => {
   return (
     <a
-      href={`gcores://open?url=${encodeURIComponent(`https://gcores.com/radios/${episode.id}`)}`}
+      href={`https://www.gcores.com/radios/${episode.id}`}
       className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow h-[360px] flex flex-col no-underline"
       suppressHydrationWarning>
 
