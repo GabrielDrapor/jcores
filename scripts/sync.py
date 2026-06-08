@@ -285,14 +285,24 @@ def main():
     sync_album_episodes()
 
     elapsed = time.time() - start
-    print(f"\nSync completed in {elapsed:.0f}s")
-    print(f"  New episodes: {new_eps}")
-    print(f"  Stats updated: {updated}")
-    print(f"  New albums: {new_albums}")
-
+    totals = {}
     for t in ["users", "episodes", "categories", "albums"]:
         r = d1_query(f"SELECT COUNT(*) as c FROM {t}")
-        print(f"  {t}: {r[0]['c']} total")
+        totals[t] = r[0]["c"]
+
+    summary = {
+        "new_episodes": new_eps,
+        "stats_updated": updated,
+        "new_albums": new_albums,
+        "elapsed_seconds": round(elapsed),
+        "totals": totals,
+    }
+
+    print(f"\nSync completed in {elapsed:.0f}s")
+    for k, v in summary.items():
+        print(f"  {k}: {v}")
+
+    return summary
 
 
 if __name__ == "__main__":

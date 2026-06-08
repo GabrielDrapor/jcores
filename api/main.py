@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
+import os
 import httpx
 from .schemas import Episode, User, Category, Album
 from .crud import get_episodes_with_filters, get_all_users, get_all_categories, get_all_albums
@@ -100,3 +101,19 @@ async def proxy_image(path: str):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error proxying image: {str(e)}")
+
+
+@app.get("/sync")
+def run_sync(request: Request):
+    secret = os.getenv("CRON_SECRET", "").strip()
+    auth = request.headers.get("authorization", "")
+    if not secret or auth != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    import sys, importlib
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    sync_mod = importlib.import_module("scripts.sync")
+    importlib.reload(sync_mod)
+
+    results = sync_mod.main()
+    return {"status": "ok", "results": results}
