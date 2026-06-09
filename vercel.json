@@ -39,11 +39,5 @@
             "src": "/api/(.*)",
             "dest": "/api/main.py"
         }
-    ],
-    "crons": [
-        {
-            "path": "/api/py/sync",
-            "schedule": "0 * * * *"
-        }
     ]
 }
