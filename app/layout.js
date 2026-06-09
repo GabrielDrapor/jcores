@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Gadio Filter',
+  title: 'Gadio Dig',
   description: 'Discover and filter Gcores podcast episodes',
   icons: {
     icon: '/gboy.ico',
