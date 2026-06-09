@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'JCores',
-  description: 'Your personal podcast library',
+  title: 'Gadio Filter',
+  description: 'Discover and filter Gcores podcast episodes',
   icons: {
     icon: '/gboy.ico',
   },

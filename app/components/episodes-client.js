@@ -96,7 +96,7 @@ const FilterSection = ({ users, categories, albums, selectedUserIds, selectedCat
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
       <div className="flex justify-center mb-5">
-        <img src="/logo.webp" alt="Logo" className="h-24 w-auto" suppressHydrationWarning />
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gadio Filter</h1>
       </div>
 
       {activeCount > 0 && (
