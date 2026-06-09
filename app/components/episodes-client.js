@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 
-const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId }) => {
+const SortingSection = ({ sortField, sortOrder, onSortChange }) => {
   const options = [
     { value: 'published_at', label: '发布时间' },
     { value: 'likes_count', label: '点赞数' },
@@ -36,17 +36,6 @@ const SortingSection = ({ sortField, sortOrder, onSortChange, selectedAlbumId })
           <span className="whitespace-nowrap">{!sortOrder ? '升序' : '降序'}</span>
         </button>
       </div>
-      {selectedAlbumId && (
-        <a
-          href={`https://www.gcores.com/albums/${selectedAlbumId}`}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500/20 transition-colors bg-white shadow-sm"
-        >
-          <span className="whitespace-nowrap">查看播单</span>
-          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
-          </svg>
-        </a>
-      )}
     </div>
   );
 };
@@ -223,7 +212,7 @@ const FilterSection = ({ users, categories, albums, selectedUserIds, selectedCat
       )}
 
       <div className="mt-5 pt-5 border-t border-gray-100">
-        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} selectedAlbumId={selectedAlbumId} />
+        <SortingSection sortField={sortField} sortOrder={sortOrder} onSortChange={onSortChange} />
       </div>
     </div>
   );
