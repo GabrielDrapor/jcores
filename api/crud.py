@@ -1,14 +1,25 @@
 from .db import cf_kv_cache, d1_query
 
+HIDDEN_CATEGORY_ID = 93
+
 
 @cf_kv_cache
 def get_all_users() -> list[dict]:
-    return d1_query("SELECT id, nickname, thumb, followers_count, followees_count FROM users ORDER BY id")
+    return d1_query("""
+        SELECT DISTINCT u.id, u.nickname, u.thumb, u.followers_count, u.followees_count
+        FROM users u
+        JOIN episode_user eu ON u.id = eu.user_id
+        JOIN episode_category ec ON eu.episode_id = ec.episode_id
+        WHERE ec.category_id != ?
+        ORDER BY u.id
+    """, [HIDDEN_CATEGORY_ID])
 
 
 @cf_kv_cache
 def get_all_categories() -> list[dict]:
-    return d1_query("SELECT id, name, desc, logo, background, subscriptions_count FROM categories ORDER BY id")
+    return d1_query(
+        "SELECT id, name, desc, logo, background, subscriptions_count FROM categories WHERE id != ? ORDER BY id",
+        [HIDDEN_CATEGORY_ID])
 
 
 @cf_kv_cache
@@ -31,9 +42,9 @@ def get_episodes_with_filters(
     direction = "ASC" if asc else "DESC"
 
     sql = "SELECT DISTINCT e.id, e.title, e.desc, e.excerpt, e.thumb, e.cover, e.comments_count, e.likes_count, e.bookmarks_count, e.duration, e.is_free, e.published_at FROM episodes e"
-    joins = []
-    conditions = []
-    params: list = []
+    joins = ["JOIN episode_category ec_filter ON e.id = ec_filter.episode_id"]
+    conditions = ["ec_filter.category_id != ?"]
+    params: list = [HIDDEN_CATEGORY_ID]
 
     having_params = []
     if user_ids:
@@ -56,10 +67,8 @@ def get_episodes_with_filters(
         conditions.append("ea.album_id = ?")
         params.append(album_id)
 
-    if joins:
-        sql += " " + " ".join(joins)
-    if conditions:
-        sql += " WHERE " + " AND ".join(conditions)
+    sql += " " + " ".join(joins)
+    sql += " WHERE " + " AND ".join(conditions)
     sql += group_by
     params.extend(having_params)
 
