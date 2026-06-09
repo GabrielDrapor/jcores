@@ -255,6 +255,47 @@ def sync_albums():
     return new_count
 
 
+# --- Step 4: Sync episode-album links for incomplete albums ---
+
+def sync_album_episodes():
+    """Fetch episode lists for albums where our link count is below radios_count."""
+    print("=== Syncing album episode links ===")
+
+    albums = d1_query("""
+        SELECT a.id, a.title, a.radios_count,
+               (SELECT COUNT(*) FROM episode_album ea WHERE ea.album_id = a.id) as link_count
+        FROM albums a
+        WHERE a.radios_count > 0
+        HAVING link_count < a.radios_count
+    """)
+    if not albums:
+        print("  All albums complete")
+        return 0
+
+    print(f"  {len(albums)} albums need updating")
+    total_new = 0
+    for album in albums:
+        aid = album["id"]
+        offset = 0
+        album_new = 0
+        while True:
+            data = gcores_get(f"albums/{aid}/published-audiobooks", {
+                "page[limit]": 50, "page[offset]": offset, "fields[radios]": "title",
+            })
+            eps = data.get("data", [])
+            if not eps:
+                break
+            for ep in eps:
+                d1("INSERT OR IGNORE INTO episode_album (album_id,episode_id) VALUES (?,?)", [aid, int(ep["id"])])
+                album_new += 1
+            offset += 50
+        total_new += album_new
+        print(f"  Album {aid} ({album['title'][:20]}): {album_new} links", flush=True)
+
+    print(f"  Total: {total_new} links synced")
+    return total_new
+
+
 # --- Main ---
 
 def main():
@@ -266,6 +307,7 @@ def main():
     new_eps = sync_new_episodes()
     updated = update_episode_stats()
     new_albums = sync_albums()
+    sync_album_episodes()
 
     elapsed = time.time() - start
     totals = {}
