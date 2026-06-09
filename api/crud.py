@@ -35,11 +35,16 @@ def get_episodes_with_filters(
     conditions = []
     params: list = []
 
+    having_params = []
     if user_ids:
         joins.append("JOIN episode_user eu ON e.id = eu.episode_id")
         placeholders = ",".join(["?"] * len(user_ids))
         conditions.append(f"eu.user_id IN ({placeholders})")
         params.extend(user_ids)
+        group_by = f" GROUP BY e.id HAVING COUNT(DISTINCT eu.user_id) = ?"
+        having_params.append(len(user_ids))
+    else:
+        group_by = ""
 
     if category_id is not None:
         joins.append("JOIN episode_category ec ON e.id = ec.episode_id")
@@ -55,6 +60,8 @@ def get_episodes_with_filters(
         sql += " " + " ".join(joins)
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
+    sql += group_by
+    params.extend(having_params)
 
     sql += f" ORDER BY e.{sort_field} {direction} LIMIT ? OFFSET ?"
     params.extend([limit, offset])
