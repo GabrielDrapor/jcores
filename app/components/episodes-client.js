@@ -73,12 +73,6 @@ const SearchInput = ({ value, onChange, placeholder }) => (
   </div>
 );
 
-const GRADIENTS = [
-  'from-purple-100 to-pink-200', 'from-cyan-100 to-blue-200', 'from-green-100 to-emerald-200',
-  'from-orange-100 to-red-200', 'from-pink-100 to-rose-200', 'from-indigo-100 to-violet-200',
-  'from-yellow-100 to-orange-200', 'from-blue-100 to-indigo-200', 'from-red-100 to-rose-200',
-  'from-teal-100 to-cyan-200',
-];
 
 const TABS = [
   { key: 'users', label: '主播' },
@@ -192,10 +186,9 @@ const FilterSection = ({ users, categories, albums, selectedUserId, selectedCate
               const filtered = query.trim() ? categories.filter(c => c.name.toLowerCase().includes(query.trim().toLowerCase())) : categories;
               return filtered.length > 0 ? filtered.map(cat => (
                 <button key={cat.id} onClick={() => onCategorySelect(cat.id)}
-                  className={`px-3.5 py-1.5 text-sm font-mono font-bold tracking-tight whitespace-nowrap rounded-md border border-black/5 transition-all hover:scale-[1.02] active:scale-[0.98]
-                    ${selectedCategoryId === cat.id
-                      ? `bg-gradient-to-r ${GRADIENTS[cat.id % GRADIENTS.length]} text-gray-800 shadow-md saturate-[1.2]`
-                      : `bg-gradient-to-r ${GRADIENTS[cat.id % GRADIENTS.length]} text-gray-600 opacity-80 hover:opacity-100 saturate-[0.8] hover:saturate-[1.1]`}`}>
+                  className={`px-3 py-1.5 text-sm whitespace-nowrap rounded-md transition-colors ${selectedCategoryId === cat.id
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'}`}>
                   {cat.name}
                 </button>
               )) : <span className="text-sm text-gray-400 py-2">未找到匹配的分类</span>;
