@@ -33,7 +33,7 @@ def health():
 
 @app.get("/episodes")
 def get_episodes(
-    user_id: Optional[int] = None,
+    user_id: Optional[str] = None,
     category_id: Optional[int] = None,
     album_id: Optional[int] = None,
     limit: int = 10,
@@ -41,8 +41,9 @@ def get_episodes(
     sort_field_str: str | None = None,
     asc: bool = False,
 ):
+    user_ids = [int(x) for x in user_id.split(",") if x.strip()] if user_id else None
     db_episodes = get_episodes_with_filters(
-        user_id=user_id,
+        user_ids=user_ids,
         category_id=category_id,
         album_id=album_id,
         limit=limit,

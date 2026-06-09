@@ -82,11 +82,11 @@ const TABS = [
 const TOP_USERS = 12;
 const TOP_ALBUMS = 9;
 
-const FilterSection = ({ users, categories, albums, selectedUserId, selectedCategoryId, selectedAlbumId, onUserSelect, onCategorySelect, onAlbumSelect, sortField, sortOrder, onSortChange }) => {
+const FilterSection = ({ users, categories, albums, selectedUserIds, selectedCategoryId, selectedAlbumId, onUserSelect, onCategorySelect, onAlbumSelect, sortField, sortOrder, onSortChange }) => {
   const [activeTab, setActiveTab] = useState('users');
   const [query, setQuery] = useState('');
 
-  const activeCount = (selectedUserId ? 1 : 0) + (selectedCategoryId ? 1 : 0) + (selectedAlbumId ? 1 : 0);
+  const activeCount = selectedUserIds.length + (selectedCategoryId ? 1 : 0) + (selectedAlbumId ? 1 : 0);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -102,10 +102,10 @@ const FilterSection = ({ users, categories, albums, selectedUserId, selectedCate
       {activeCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-gray-100">
           <span className="text-xs text-gray-400 mr-1">筛选中</span>
-          {selectedUserId && (() => {
-            const u = users.find(u => u.id === selectedUserId);
+          {selectedUserIds.map(uid => {
+            const u = users.find(u => u.id === uid);
             return u ? (
-              <button onClick={() => onUserSelect(selectedUserId)} className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
+              <button key={uid} onClick={() => onUserSelect(uid)} className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors">
                 <div className="w-5 h-5 rounded-full overflow-hidden ring-1 ring-blue-300">
                   {u.thumb ? <img src={`/api/py/image-proxy/${u.thumb}`} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-blue-200" />}
                 </div>
@@ -113,7 +113,7 @@ const FilterSection = ({ users, categories, albums, selectedUserId, selectedCate
                 <svg className="w-3 h-3 text-blue-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4l-8 8M4 4l8 8" /></svg>
               </button>
             ) : null;
-          })()}
+          })}
           {selectedCategoryId && (() => {
             const c = categories.find(c => c.id === selectedCategoryId);
             return c ? (
@@ -161,18 +161,20 @@ const FilterSection = ({ users, categories, albums, selectedUserId, selectedCate
           <div className="flex flex-wrap gap-2">
             {(() => {
               const filtered = query.trim() ? users.filter(u => u.nickname.toLowerCase().includes(query.trim().toLowerCase())) : users.slice(0, TOP_USERS);
-              return filtered.length > 0 ? filtered.map(user => (
+              return filtered.length > 0 ? filtered.map(user => {
+                const selected = selectedUserIds.includes(user.id);
+                return (
                 <button key={user.id} onClick={() => onUserSelect(user.id)}
-                  className={`group flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all hover:scale-[1.02] active:scale-[0.98] ${selectedUserId === user.id
+                  className={`group flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all hover:scale-[1.02] active:scale-[0.98] ${selected
                     ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-500/20 shadow-sm'
                     : 'bg-gray-50/80 text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
-                  <div className={`w-8 h-8 rounded-full overflow-hidden ring-1.5 ${selectedUserId === user.id ? 'ring-blue-500' : 'ring-gray-200'}`}>
+                  <div className={`w-8 h-8 rounded-full overflow-hidden ring-1.5 ${selected ? 'ring-blue-500' : 'ring-gray-200'}`}>
                     {user.thumb ? <img src={`/api/py/image-proxy/${user.thumb}`} alt={user.nickname} className="w-full h-full object-cover" />
                       : <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 text-xs">{user.nickname.charAt(0)}</div>}
                   </div>
                   <span>{user.nickname}</span>
                 </button>
-              )) : <span className="text-sm text-gray-400 py-2">未找到匹配的主播</span>;
+              );}) : <span className="text-sm text-gray-400 py-2">未找到匹配的主播</span>;
             })()}
           </div>
         </>
@@ -297,7 +299,7 @@ export default function EpisodesClient({ initialData }) {
   const [categories, setCategories] = useState(initialData.categories);
   const [albums, setAlbums] = useState(initialData.albums);
   const [loading, setLoading] = useState(false);
-  const [userId, setUserId] = useState(null);
+  const [userIds, setUserIds] = useState([]);
   const [categoryId, setCategoryId] = useState(null);
   const [albumId, setAlbumId] = useState(null);
   const [sortField, setSortField] = useState('published_at');
@@ -321,12 +323,12 @@ export default function EpisodesClient({ initialData }) {
         params = customParams;
       } else {
         params = new URLSearchParams();
-        if (userId) params.append('user_id', userId.toString());
+        if (userIds.length) params.append('user_id', userIds.join(','));
         if (categoryId) params.append('category_id', categoryId.toString());
         if (albumId) params.append('album_id', albumId.toString());
         if (sortField) {
           params.append('sort_field_str', sortField);
-          params.append('asc', (!sortOrder).toString());  // Only send asc when sort field is selected
+          params.append('asc', (!sortOrder).toString());
         }
         params.append('limit', '12');
         params.append('offset', isLoadingMore ? offset.toString() : '0');
@@ -389,16 +391,16 @@ export default function EpisodesClient({ initialData }) {
           users={users}
           categories={categories}
           albums={albums}
-          selectedUserId={userId}
+          selectedUserIds={userIds}
           selectedCategoryId={categoryId}
           selectedAlbumId={albumId}
           sortField={sortField}
           sortOrder={sortOrder}
           onUserSelect={(id) => {
-            const newUserId = id === userId ? null : id;
-            setUserId(newUserId);
+            const newIds = userIds.includes(id) ? userIds.filter(x => x !== id) : [...userIds, id];
+            setUserIds(newIds);
             const params = new URLSearchParams();
-            if (newUserId) params.append('user_id', newUserId.toString());
+            if (newIds.length) params.append('user_id', newIds.join(','));
             if (categoryId) params.append('category_id', categoryId.toString());
             if (albumId) params.append('album_id', albumId.toString());
             if (sortField) {
@@ -413,7 +415,7 @@ export default function EpisodesClient({ initialData }) {
             const newCategoryId = id === categoryId ? null : id;
             setCategoryId(newCategoryId);
             const params = new URLSearchParams();
-            if (userId) params.append('user_id', userId.toString());
+            if (userIds.length) params.append('user_id', userIds.join(','));
             if (newCategoryId) params.append('category_id', newCategoryId.toString());
             if (albumId) params.append('album_id', albumId.toString());
             if (sortField) {
@@ -429,7 +431,7 @@ export default function EpisodesClient({ initialData }) {
             setSortField(newSortField);
             setSortOrder(order);
             const params = new URLSearchParams();
-            if (userId) params.append('user_id', userId.toString());
+            if (userIds.length) params.append('user_id', userIds.join(','));
             if (categoryId) params.append('category_id', categoryId.toString());
             if (albumId) params.append('album_id', albumId.toString());
             if (newSortField) {
@@ -444,7 +446,7 @@ export default function EpisodesClient({ initialData }) {
             const newAlbumId = id === albumId ? null : id;
             setAlbumId(newAlbumId);
             const params = new URLSearchParams();
-            if (userId) params.append('user_id', userId.toString());
+            if (userIds.length) params.append('user_id', userIds.join(','));
             if (categoryId) params.append('category_id', categoryId.toString());
             if (newAlbumId) params.append('album_id', newAlbumId.toString());
             if (sortField) {

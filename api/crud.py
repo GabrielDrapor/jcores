@@ -17,7 +17,7 @@ def get_all_albums() -> list[dict]:
 
 
 def get_episodes_with_filters(
-    user_id: int | None = None,
+    user_ids: list[int] | None = None,
     category_id: int | None = None,
     album_id: int | None = None,
     sort_field: str | None = None,
@@ -30,15 +30,16 @@ def get_episodes_with_filters(
         sort_field = "published_at"
     direction = "ASC" if asc else "DESC"
 
-    sql = "SELECT e.id, e.title, e.desc, e.excerpt, e.thumb, e.cover, e.comments_count, e.likes_count, e.bookmarks_count, e.duration, e.is_free, e.published_at FROM episodes e"
+    sql = "SELECT DISTINCT e.id, e.title, e.desc, e.excerpt, e.thumb, e.cover, e.comments_count, e.likes_count, e.bookmarks_count, e.duration, e.is_free, e.published_at FROM episodes e"
     joins = []
     conditions = []
     params: list = []
 
-    if user_id is not None:
+    if user_ids:
         joins.append("JOIN episode_user eu ON e.id = eu.episode_id")
-        conditions.append("eu.user_id = ?")
-        params.append(user_id)
+        placeholders = ",".join(["?"] * len(user_ids))
+        conditions.append(f"eu.user_id IN ({placeholders})")
+        params.extend(user_ids)
 
     if category_id is not None:
         joins.append("JOIN episode_category ec ON e.id = ec.episode_id")
