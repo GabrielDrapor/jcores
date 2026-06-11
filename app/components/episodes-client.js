@@ -235,6 +235,38 @@ const EpisodeCardSkeleton = () => {
   );
 };
 
+const MAX_VISIBLE_DJS = 4;
+
+const DJAvatars = ({ djs }) => {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? djs : djs.slice(0, MAX_VISIBLE_DJS);
+  const overflow = djs.length - MAX_VISIBLE_DJS;
+
+  return (
+    <div className="flex items-center -space-x-1.5 flex-shrink-0" onClick={e => { e.preventDefault(); if (overflow > 0) setExpanded(!expanded); }}>
+      {visible.map(dj => (
+        <div key={dj.id} className="relative group">
+          <div className="w-6 h-6 rounded-full overflow-hidden ring-2 ring-white bg-gray-200">
+            {dj.thumb ? (
+              <img src={`/api/py/image-proxy/${dj.thumb}`} alt={dj.nickname} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-500 text-[8px] font-medium">{dj.nickname.charAt(0)}</div>
+            )}
+          </div>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+            {dj.nickname}
+          </div>
+        </div>
+      ))}
+      {!expanded && overflow > 0 && (
+        <div className="w-6 h-6 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center text-[10px] text-gray-500 font-medium cursor-pointer">
+          +{overflow}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EpisodeCard = ({ episode }) => {
   return (
     <a
@@ -255,27 +287,30 @@ const EpisodeCard = ({ episode }) => {
         <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 flex-shrink-0">
           {episode.title}
         </h3>
-        <div className="text-sm text-gray-500 mt-auto">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+        <div className="flex items-end justify-between mt-auto gap-3">
+          <div className="flex flex-wrap gap-3 text-sm text-gray-500">
+            <div className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
               </svg>
               <span>{episode.likes_count || 0}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <div className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
               </svg>
               <span>{episode.bookmarks_count || 0}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <div className="flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
               </svg>
               <span>{episode.comments_count || 0}</span>
             </div>
           </div>
+          {episode.djs?.length > 0 && (
+            <DJAvatars djs={episode.djs} />
+          )}
         </div>
       </div>
     </a>

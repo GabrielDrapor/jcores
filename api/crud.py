@@ -76,6 +76,20 @@ def get_episodes_with_filters(
     params.extend([limit, offset])
 
     rows = d1_query(sql, params)
+    if not rows:
+        return rows
+
+    ep_ids = [r["id"] for r in rows]
+    placeholders = ",".join(["?"] * len(ep_ids))
+    dj_rows = d1_query(
+        f"SELECT eu.episode_id, u.id, u.nickname, u.thumb FROM episode_user eu JOIN users u ON eu.user_id = u.id WHERE eu.episode_id IN ({placeholders})",
+        ep_ids)
+
+    dj_map = {}
+    for dj in dj_rows:
+        dj_map.setdefault(dj["episode_id"], []).append({"id": dj["id"], "nickname": dj["nickname"], "thumb": dj["thumb"]})
+
     for row in rows:
         row["is_free"] = bool(row["is_free"])
+        row["djs"] = dj_map.get(row["id"], [])
     return rows

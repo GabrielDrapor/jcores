@@ -20,6 +20,12 @@ class Category(BaseModel):
     subscriptions_count: int
 
 
+class DJ(BaseModel):
+    id: int
+    nickname: str
+    thumb: Optional[str]
+
+
 class Episode(BaseModel):
     id: int
     title: str
@@ -33,6 +39,7 @@ class Episode(BaseModel):
     duration: int
     is_free: bool
     published_at: datetime
+    djs: list[DJ] = []
 
 
 class Album(BaseModel):
